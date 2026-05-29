@@ -1,0 +1,1041 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum TenantType {
+  NATION
+  PROVINCE
+  CITY
+  PRECINCT
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  PROVINCE_ADMIN
+  CITY_ADMIN
+  PRECINCT_ADMIN
+  DETECTIVE
+  OFFICER
+  DISPATCHER
+  PUBLIC
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  ON_LEAVE
+}
+
+enum SeverityLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum DisciplinaryStatus {
+  INVESTIGATING
+  SUBSTANTIATED
+  DISMISSED
+  ACTION_TAKEN
+}
+
+enum TrainingStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum ExpenseStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  REIMBURSED
+}
+
+enum PayrollStatus {
+  PENDING
+  PROCESSED
+  PAID
+  CANCELLED
+}
+
+enum ShiftSwapStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CaseStatus {
+  OPEN
+  ACTIVE
+  REVIEW
+  PROSECUTION
+  CLOSED
+}
+
+enum CaseType {
+  THEFT
+  ASSAULT
+  HOMICIDE
+  FRAUD
+  DRUG_OFFENCE
+  CYBERCRIME
+  DOMESTIC_VIOLENCE
+  MISSING_PERSON
+  TRAFFIC
+  PUBLIC_ORDER
+  OTHER
+}
+
+enum EvidenceType {
+  PHYSICAL
+  DIGITAL
+  DOCUMENTARY
+  BIOLOGICAL
+  AUDIO
+  VIDEO
+  PHOTO
+}
+
+enum PersonRole {
+  SUSPECT
+  WITNESS
+  VICTIM
+  PERSON_OF_INTEREST
+}
+
+enum AssetStatus {
+  AVAILABLE
+  ISSUED
+  MAINTENANCE
+  DECOMMISSIONED
+  LOST
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  ASSIGNED
+  MAINTENANCE
+  DECOMMISSIONED
+}
+
+enum ShiftType {
+  MORNING
+  AFTERNOON
+  NIGHT
+  CUSTOM
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  MATERNITY
+  PATERNITY
+  STUDY
+  SPECIAL
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum FoiaStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  INFORMATION_REQUESTED
+  COMPLETED
+  DENIED
+}
+
+enum HandoffStatus {
+  PREPARING
+  SUBMITTED
+  ACCEPTED
+  COURT_DATE_SET
+  CONCLUDED
+}
+
+enum IncidentStatus {
+  ACTIVE
+  RESOLVED
+  CANCELLED
+}
+
+// ─────────────────────────────────────────────
+// MULTI-TENANCY
+// ─────────────────────────────────────────────
+
+model Tenant {
+  id        String     @id @default(cuid())
+  name      String
+  type      TenantType
+  parentId  String?
+  parent    Tenant?    @relation("TenantHierarchy", fields: [parentId], references: [id])
+  children  Tenant[]   @relation("TenantHierarchy")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  users            User[]
+  cases            Case[]
+  assets           Asset[]
+  vehicles         Vehicle[]
+  shifts           Shift[]
+  shiftTemplates   ShiftTemplate[]
+  budgets          Budget[]
+  foiaRequests     FoiaRequest[]
+  incidents        Incident[]
+  officerLocations OfficerLocation[]
+  leaveRequests    LeaveRequest[]
+  purchaseOrders   PurchaseOrder[]
+  disciplinaryIncidents DisciplinaryIncident[]
+  trainingCertificates  TrainingCertification[]
+  payrollPeriods   PayrollPeriod[]
+  expenseClaims    ExpenseClaim[]
+  subscription     Subscription?
+  dataRetentionPolicy DataRetentionPolicy?
+
+  @@index([parentId])
+  @@index([type])
+}
+
+// ─────────────────────────────────────────────
+// AUTH & USERS
+// ─────────────────────────────────────────────
+
+model User {
+  id            String     @id @default(cuid())
+  tenantId      String
+  tenant        Tenant     @relation(fields: [tenantId], references: [id])
+  role          UserRole   @default(OFFICER)
+  status        UserStatus @default(ACTIVE)
+  name          String
+  email         String     @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  badgeNumber   String?
+  rank          String?
+  department    String?
+  phone         String?
+  photoUrl      String?
+  mfaSecret     String?
+  mfaEnabled    Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  assignedCases CaseAssignment[]
+  evidenceLog   EvidenceCustody[]
+  auditLogs     AuditLog[]
+  shifts        ShiftAssignment[]
+  leaveRequests LeaveRequest[]
+  issuedAssets  AssetIssuance[]
+  assignedVehicles VehicleAssignment[]
+  tipsSubmitted CrimeTip[]
+  notes         CaseNote[]
+  performanceReviews PerformanceReview[]
+  disciplinaryIncidents DisciplinaryIncident[]
+  trainingCertifications TrainingCertification[]
+  payrollEntries   PayrollEntry[]
+  expenseClaims    ExpenseClaim[]
+  shiftSwapRequests ShiftSwap[] @relation("ShiftSwapRequestor")
+  shiftSwapTargets  ShiftSwap[] @relation("ShiftSwapTarget")
+  officerLocation   OfficerLocation?
+
+  @@index([tenantId])
+  @@index([email])
+  @@index([badgeNumber])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─────────────────────────────────────────────
+// AUDIT LOGGING
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  tenantId   String
+  action     String
+  resource   String
+  resourceId String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────
+// CASE MANAGEMENT
+// ─────────────────────────────────────────────
+
+model Case {
+  id          String     @id @default(cuid())
+  caseNumber  String     @unique
+  tenantId    String
+  tenant      Tenant     @relation(fields: [tenantId], references: [id])
+  type        CaseType
+  status      CaseStatus @default(OPEN)
+  title       String
+  description String     @db.Text
+  incidentDate DateTime?
+  location    String?
+  latitude    Float?
+  longitude   Float?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  closedAt    DateTime?
+
+  assignments    CaseAssignment[]
+  evidence       Evidence[]
+  persons        CasePersonLink[]
+  notes          CaseNote[]
+  sharedWith     CaseShare[]
+  handoff        CourtHandoff?
+  linkedIncident Incident?        @relation(fields: [linkedIncidentId], references: [id])
+  linkedIncidentId String?
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([caseNumber])
+}
+
+model CaseAssignment {
+  id         String   @id @default(cuid())
+  caseId     String
+  case       Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  assignedAt DateTime @default(now())
+  isLead     Boolean  @default(false)
+
+  @@unique([caseId, userId])
+}
+
+model CaseNote {
+  id        String   @id @default(cuid())
+  caseId    String
+  case      Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([caseId])
+}
+
+model CaseShare {
+  id               String   @id @default(cuid())
+  caseId           String
+  case             Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  sharedWithTenantId String
+  canEdit          Boolean  @default(false)
+  isJointInvestigation Boolean @default(false)
+  approvedAt       DateTime?
+  requestedById    String?
+  createdAt        DateTime @default(now())
+
+  @@unique([caseId, sharedWithTenantId])
+}
+
+// ─────────────────────────────────────────────
+// EVIDENCE
+// ─────────────────────────────────────────────
+
+model Evidence {
+  id           String       @id @default(cuid())
+  caseId       String
+  case         Case         @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  type         EvidenceType
+  description  String
+  storageLocation String?
+  fileUrl      String?
+  fileKey      String?
+  fileSize     Int?
+  mimeType     String?
+  tagNumber    String?
+  collectedAt  DateTime?
+  collectedBy  String?
+  createdAt    DateTime     @default(now())
+
+  custodyChain EvidenceCustody[]
+
+  @@index([caseId])
+}
+
+model EvidenceCustody {
+  id          String   @id @default(cuid())
+  evidenceId  String
+  evidence    Evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  action      String
+  reason      String?
+  location    String?
+  createdAt   DateTime @default(now())
+
+  @@index([evidenceId])
+}
+
+// ─────────────────────────────────────────────
+// PERSONS (Suspects, Witnesses, Victims)
+// ─────────────────────────────────────────────
+
+model Person {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  dateOfBirth DateTime?
+  idNumber    String?
+  nationality String?
+  gender      String?
+  phone       String?
+  email       String?
+  address     String?
+  photoUrl    String?
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  caseLinks  CasePersonLink[]
+  statements Statement[]
+
+  @@index([idNumber])
+}
+
+model CasePersonLink {
+  id         String     @id @default(cuid())
+  caseId     String
+  case       Case       @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  personId   String
+  person     Person     @relation(fields: [personId], references: [id])
+  role       PersonRole
+  createdAt  DateTime   @default(now())
+
+  @@unique([caseId, personId, role])
+}
+
+model Statement {
+  id          String   @id @default(cuid())
+  personId    String
+  person      Person   @relation(fields: [personId], references: [id])
+  content     String   @db.Text
+  fileUrl     String?
+  takenAt     DateTime @default(now())
+  takenById   String?
+}
+
+// ─────────────────────────────────────────────
+// COURT HANDOFF
+// ─────────────────────────────────────────────
+
+model CourtHandoff {
+  id                   String        @id @default(cuid())
+  caseId               String        @unique
+  case                 Case          @relation(fields: [caseId], references: [id])
+  status               HandoffStatus @default(PREPARING)
+  prosecutorName       String?
+  prosecutorRef        String?
+  submittedAt          DateTime?
+  courtDate            DateTime?
+  courtName            String?
+  notes                String?       @db.Text
+  packageFileUrl       String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// DISPATCH INTEGRATION
+// ─────────────────────────────────────────────
+
+model OfficerLocation {
+  id         String   @id @default(cuid())
+  officerId  String
+  officer    User     @relation(fields: [officerId], references: [id])
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  latitude   Float
+  longitude  Float
+  heading    Float?
+  speed      Float?
+  accuracy   Float?
+  status     String   @default("ON_DUTY")
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  @@index([officerId])
+  @@index([tenantId])
+  @@index([updatedAt])
+  @@unique([officerId])
+}
+
+model Incident {
+  id             String         @id @default(cuid())
+  tenantId       String
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+  externalId     String?        @unique
+  type           String
+  status         IncidentStatus @default(ACTIVE)
+  description    String?        @db.Text
+  location       String?
+  latitude       Float?
+  longitude      Float?
+  reportedAt     DateTime       @default(now())
+  resolvedAt     DateTime?
+  rawPayload     Json?
+
+  linkedCases    Case[]
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────
+// HR — STAFF & LEAVE
+// ─────────────────────────────────────────────
+
+model LeaveRequest {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  type        LeaveType
+  status      LeaveStatus @default(PENDING)
+  startDate   DateTime
+  endDate     DateTime
+  reason      String?     @db.Text
+  approvedById String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([tenantId])
+}
+
+model PerformanceReview {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  reviewedById String
+  rating      Int
+  period      String
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// HR — DISCIPLINARY & TRAINING
+// ─────────────────────────────────────────────
+
+model DisciplinaryIncident {
+  id            String             @id @default(cuid())
+  userId        String
+  user          User               @relation(fields: [userId], references: [id])
+  tenantId      String
+  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+  incident      String
+  date          DateTime
+  severity      SeverityLevel
+  description   String             @db.Text
+  actionTaken   String?
+  status        DisciplinaryStatus @default(INVESTIGATING)
+  createdById   String
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([tenantId])
+}
+
+model TrainingCertification {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  name          String
+  issuingBody   String
+  certificateNo String?
+  issuedAt      DateTime
+  expiresAt     DateTime?
+  status        TrainingStatus @default(ACTIVE)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([expiresAt])
+}
+
+// ─────────────────────────────────────────────
+// SHIFT SCHEDULING
+// ─────────────────────────────────────────────
+
+model ShiftTemplate {
+  id        String    @id @default(cuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  name      String
+  type      ShiftType
+  startTime DateTime
+  endTime   DateTime
+  dayOfWeek Int?      // 0=Sunday, 6=Saturday, null=recurring
+  createdAt DateTime  @default(now())
+
+  @@index([tenantId])
+}
+
+model Shift {
+  id        String    @id @default(cuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  name      String
+  type      ShiftType
+  startTime DateTime
+  endTime   DateTime
+  createdAt DateTime  @default(now())
+
+  assignments ShiftAssignment[]
+  swapRequests ShiftSwap[]
+
+  @@index([tenantId])
+}
+
+model ShiftAssignment {
+  id         String   @id @default(cuid())
+  shiftId    String
+  shift      Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  isOvertime Boolean  @default(false)
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@unique([shiftId, userId])
+}
+
+model ShiftSwap {
+  id               String          @id @default(cuid())
+  shiftId          String
+  shift            Shift           @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  requestingUserId String
+  requestingUser   User            @relation("ShiftSwapRequestor", fields: [requestingUserId], references: [id])
+  targetUserId     String
+  targetUser       User            @relation("ShiftSwapTarget", fields: [targetUserId], references: [id])
+  reason           String?         @db.Text
+  status           ShiftSwapStatus @default(PENDING)
+  approvedById     String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([shiftId])
+  @@index([requestingUserId])
+}
+
+// ─────────────────────────────────────────────
+// PAYROLL
+// ─────────────────────────────────────────────
+
+model PayrollPeriod {
+  id            String        @id @default(cuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  name          String
+  startDate     DateTime
+  endDate       DateTime
+  status        PayrollStatus @default(PENDING)
+  processedAt   DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  entries PayrollEntry[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model PayrollEntry {
+  id              String        @id @default(cuid())
+  payrollPeriodId String
+  payrollPeriod   PayrollPeriod @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  baseHours       Float         @default(0)
+  overtimeHours   Float         @default(0)
+  overtimeRate    Float         @default(1.5)
+  allowances      Float         @default(0)
+  deductions      Float         @default(0)
+  grossPay        Float         @default(0)
+  netPay          Float         @default(0)
+  status          PayrollStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([payrollPeriodId])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// ERP — FLEET FUEL LOG
+// ─────────────────────────────────────────────
+
+model FuelLog {
+  id          String   @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id])
+  litres      Float
+  cost        Float
+  odometer    Int?
+  filledAt    DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([vehicleId])
+}
+
+// ─────────────────────────────────────────────
+// ERP — FLEET VEHICLE INCIDENT
+// ─────────────────────────────────────────────
+
+model VehicleIncident {
+  id          String   @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id])
+  description String   @db.Text
+  incidentDate DateTime
+  severity    SeverityLevel @default(MEDIUM)
+  reportedById String?
+  cost        Float?
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([vehicleId])
+}
+
+// ─────────────────────────────────────────────
+// BILLING & SUBSCRIPTION MANAGEMENT
+// ─────────────────────────────────────────────
+
+enum SubscriptionPlan {
+  BASIC
+  PROFESSIONAL
+  ENTERPRISE
+  GOVERNMENT
+}
+
+enum BillingCycle {
+  MONTHLY
+  ANNUAL
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+model Subscription {
+  id            String             @id @default(cuid())
+  tenantId      String             @unique
+  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+  plan          SubscriptionPlan
+  billingCycle  BillingCycle
+  amount        Float
+  activeUsers   Int                @default(0)
+  storageLimit  String             @default("10GB")
+  status        SubscriptionStatus @default(ACTIVE)
+  startDate     DateTime
+  endDate       DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([tenantId])
+}
+
+// ─────────────────────────────────────────────
+// COMPLIANCE — DATA RETENTION POLICIES
+// ─────────────────────────────────────────────
+
+model DataRetentionPolicy {
+  id               String   @id @default(cuid())
+  tenantId         String   @unique
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  auditLogRetentionDays Int   @default(365)     // 1 year
+  caseRetentionDays      Int   @default(2555)    // 7 years
+  personRecordRetention  Int   @default(2555)    // 7 years
+  foiaRetentionDays      Int   @default(1825)    // 5 years
+  autoPurgeEnabled       Boolean @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+// ─────────────────────────────────────────────
+// ERP — FINANCE (Expenses)
+// ─────────────────────────────────────────────
+
+model ExpenseClaim {
+  id            String        @id @default(cuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  title         String
+  description   String?       @db.Text
+  amount        Float
+  category      String
+  receiptUrl    String?
+  status        ExpenseStatus @default(DRAFT)
+  approvedById  String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([tenantId])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// ERP — FLEET
+// ─────────────────────────────────────────────
+
+model Vehicle {
+  id            String        @id @default(cuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  make          String
+  model         String
+  year          Int
+  plate         String
+  vin           String?
+  status        VehicleStatus @default(AVAILABLE)
+  colour        String?
+  mileage       Int?
+  nextServiceAt DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  assignments  VehicleAssignment[]
+  maintenance  VehicleMaintenance[]
+  fuelLogs     FuelLog[]
+  incidents    VehicleIncident[]
+
+  @@index([tenantId])
+}
+
+model VehicleAssignment {
+  id         String    @id @default(cuid())
+  vehicleId  String
+  vehicle    Vehicle   @relation(fields: [vehicleId], references: [id])
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  assignedAt DateTime  @default(now())
+  returnedAt DateTime?
+
+  @@index([vehicleId])
+}
+
+model VehicleMaintenance {
+  id          String   @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id])
+  description String
+  cost        Float?
+  performedAt DateTime
+  nextDueAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([vehicleId])
+}
+
+// ─────────────────────────────────────────────
+// ERP — ASSETS
+// ─────────────────────────────────────────────
+
+model Asset {
+  id           String      @id @default(cuid())
+  tenantId     String
+  tenant       Tenant      @relation(fields: [tenantId], references: [id])
+  name         String
+  category     String
+  serialNumber String?
+  qrCode       String?
+  status       AssetStatus @default(AVAILABLE)
+  notes        String?
+  purchasedAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  issuances    AssetIssuance[]
+
+  @@index([tenantId])
+  @@index([serialNumber])
+}
+
+model AssetIssuance {
+  id          String    @id @default(cuid())
+  assetId     String
+  asset       Asset     @relation(fields: [assetId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  issuedAt    DateTime  @default(now())
+  returnedAt  DateTime?
+  condition   String?
+  notes       String?
+
+  @@index([assetId])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// ERP — BUDGET & FINANCE
+// ─────────────────────────────────────────────
+
+model Budget {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  financialYear String
+  category     String
+  totalAmount  Float
+  spentAmount  Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+
+  @@index([tenantId])
+  @@unique([tenantId, financialYear, category])
+}
+
+model PurchaseOrder {
+  id          String              @id @default(cuid())
+  tenantId    String
+  tenant      Tenant              @relation(fields: [tenantId], references: [id])
+  budgetId    String?
+  budget      Budget?             @relation(fields: [budgetId], references: [id])
+  status      PurchaseOrderStatus @default(DRAFT)
+  title       String
+  description String?             @db.Text
+  amount      Float
+  vendor      String?
+  approvedById String?
+  createdById  String
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([tenantId])
+}
+
+// ─────────────────────────────────────────────
+// PUBLIC PORTAL
+// ─────────────────────────────────────────────
+
+model CrimeTip {
+  id           String   @id @default(cuid())
+  tenantId     String
+  type         String
+  description  String   @db.Text
+  location     String?
+  latitude     Float?
+  longitude    Float?
+  contactEmail String?
+  contactPhone String?
+  submittedById String?
+  submittedBy  User?    @relation(fields: [submittedById], references: [id])
+  isAnonymous  Boolean  @default(true)
+  reviewed     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model FoiaRequest {
+  id            String     @id @default(cuid())
+  tenantId      String
+  tenant        Tenant     @relation(fields: [tenantId], references: [id])
+  referenceNumber String   @unique
+  status        FoiaStatus @default(SUBMITTED)
+  requesterName String
+  requesterEmail String
+  requesterOrg  String?
+  description   String     @db.Text
+  responseNotes String?    @db.Text
+  responseFileUrl String?
+  dueDate       DateTime?
+  respondedAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([tenantId])
+  @@index([referenceNumber])
+}
