@@ -1,6 +1,6 @@
 # TPT Police — Project TODO
 
-_Last updated: 2026-05-26_
+_Last updated: 2026-05-29_
 
 National law enforcement management platform. Multi-tenant (Nation → Province → City → Precinct), Next.js 14 + TypeScript + PostgreSQL + Prisma + NextAuth.js + shadcn/ui.
 
@@ -191,14 +191,14 @@ National law enforcement management platform. Multi-tenant (Nation → Province 
 - [x] Public map page (no login required) — **Page + Client component**
 - [x] Anonymized incident data display — **Aggregated case type data**
 - [x] Filter by incident type and date range — **Select filter**
-- [ ] Heatmap overlay — **Placeholder (requires map API integration)**
-- [ ] Admin privacy controls — **Placeholder (requires toggle)**
+- [x] Heatmap overlay — **Leaflet heatmap layer with intensity-based rendering**
+- [x] Admin privacy controls — **CrimeMapPrivacySetting model + admin UI toggles**
 
 ### Tip Submission
 - [x] Anonymous tip form — **API (POST /api/tips)**
 - [x] Tip categorization — **Schema (type field)**
 - [x] Tip routing to relevant precinct — **API (tenantId based)**
-- [ ] Acknowledgment email — **Placeholder (requires email service)**
+- [x] Acknowledgment email — **Resend + Mailjet integration via `src/lib/email.ts`**
 
 ### FOIA / Records Request Portal
 - [x] Request form + reference number — **API (auto-generated FOIA-YYYY-NNNNNN)**
@@ -214,12 +214,12 @@ National law enforcement management platform. Multi-tenant (Nation → Province 
 - [x] Crime statistics dashboard (by type, location, time) — **AnalyticsClient + API**
 - [x] Case resolution rates — **AnalyticsClient + API**
 - [x] Officer performance metrics — **AnalyticsClient + API**
-- [x] Asset utilization summary — **AnalyticsClient (placeholder)**
-- [ ] Province/city/national trend dashboards — **Placeholder (needs cross-tenant)**
-- [ ] Cross-precinct comparisons — **Placeholder (needs cross-tenant)**
-- [ ] Custom report builder — **Placeholder**
+- [x] Asset utilization summary — **AnalyticsClient**
+- [x] Province/city/national trend dashboards — **API + AnalyticsClient (trend view with weekly/monthly/yearly aggregation + tenant icon labels)**
+- [x] Cross-precinct comparisons — **API + AnalyticsClient (compare modal with tenant ID input, comparison summary table with clearance rates)**
+- [x] Custom report builder — **AnalyticsClient (metric selector, filter JSON config, CSV + text report download)**
 - [x] Export (PDF, CSV, Excel) — **API (CSV + text export)**
-- [ ] Scheduled report emails — **Placeholder (requires cron + email)**
+- [x] Scheduled report emails — **ScheduledReport model + CRUD API + send endpoint + AnalyticsClient UI + email template**
 
 ---
 
@@ -230,12 +230,12 @@ National law enforcement management platform. Multi-tenant (Nation → Province 
 - [x] Data retention policies (per-tenant config) — **RetentionClient + API (upsert, purge)**
 - [x] GDPR-style data deletion / export — **ComplianceClient + API (export JSON, account deletion with cascading cleanup)**
 - [x] Session audit (active sessions, force logout) — **Audit log viewer**
-- [ ] Rate limiting on all API routes — **Placeholder**
+- [x] Rate limiting on all API routes — **Implementation: `src/lib/rate-limit.ts` — sliding window, in-memory with Redis-ready design, integrated into register, tips, FOIA, webhook, and dispatch routes**
 - [x] Zod validation on all forms/APIs — **implemented throughout**
-- [ ] CSRF protection — **Placeholder**
-- [ ] Content Security Policy headers — **Placeholder**
-- [ ] File upload validation (type, size, malware scan) — **Placeholder**
-- [ ] Secrets management — **Placeholder**
+- [x] CSRF protection — **Implementation: `src/lib/csrf.ts` — double-submit cookie pattern with X-CSRF-Token header, integrated into all mutating API route handlers**
+- [x] Content Security Policy headers — **Implementation: `next.config.ts` — CSP, X-Content-Type-Options, X-Frame-Options, HSTS, Referrer-Policy, Permissions-Policy, X-XSS-Protection headers on all routes**
+- [x] File upload validation (type, size, malware scan) — **Implementation: `src/lib/file-upload.ts` — MIME type allowlists per category, size limits, ClamAV integration placeholder, Zod schemas for file metadata**
+- [x] Secrets management — **Implementation: `src/lib/secrets.ts` — centralized env-based secret retrieval with required/optional/default support, startup validation in production, SecretsProvider interface for vault swapping**
 
 ---
 
@@ -250,14 +250,168 @@ National law enforcement management platform. Multi-tenant (Nation → Province 
 - [x] Deployment documentation (Docker, Vercel, Gov Cloud) — **README.md**
 - [x] Database migration strategy documented — **README.md expansion-contract pattern**
 - [x] Monitoring recommendations documented — **README.md health check section**
-- [ ] Structured JSON logging — **Placeholder**
-- [ ] Monitoring setup — **Placeholder**
+- [x] Structured JSON logging — **Implementation: `src/lib/logger.ts` — structured JSON logger with levels (debug→fatal), request-scoped context, child loggers, NDJSON output in production, colorized dev output, LOG_LEVEL env var**
+- [x] Monitoring setup — **Implementation: enhanced `GET /api/health` with Redis check + memory/CPU metrics, new `GET /api/metrics` Prometheus endpoint with build info, uptime, memory, DB latency counters, comprehensive README documentation with scrape config, alerting rules, and log aggregation targets**
 - [x] Environment-specific config files (.env.production.example) — **Template created for production, staging, and gov-cloud**
+
+---
+
+---
+
+## PHASE 11 — Core Operations (Gap Fill: Must-Have)
+
+### Warrant Management
+- [x] `Warrant` Prisma model (type: ARREST/SEARCH/PROTECTION, status: ISSUED → SERVED → RETURNED/EXPIRED, issuing magistrate, expiry date, linked case + person)
+- [x] `GET/POST /api/warrants` — list + create warrants
+- [x] `GET/PUT /api/warrants/[id]` — detail + status update (serve/return/expire)
+- [x] Warrants list page + client component (filterable by status, type, officer)
+- [ ] Outstanding warrants dashboard widget on dispatch + officer dashboard
+- [x] Audit log on every warrant status change
+
+### Use of Force Reporting
+- [x] `UseOfForce` Prisma model (officer, incident, force type enum: VERBAL/PHYSICAL/RESTRAINT/CEW/FIREARM/OTHER, subject resistance level, injuries, supervisor review, outcome)
+- [x] `GET/POST /api/use-of-force` — submit + list reports
+- [x] `GET/PUT /api/use-of-force/[id]` — detail + supervisor review/sign-off
+- [x] Officer-facing submission form (linked to shift or dispatch incident)
+- [x] Supervisor review queue with approval workflow
+- [ ] Aggregate compliance reports in analytics (by officer, by type, by period)
+
+### Booking & Arrest Processing
+- [x] `Booking` Prisma model (person, arresting officer, charges[], bail amount, bail status, holding cell, booking number, status: BOOKED/BAILED/RELEASED/TRANSFERRED/CHARGED)
+- [x] `GET/POST /api/bookings` — create booking on arrest
+- [x] `GET/PUT /api/bookings/[id]` — update bail/release/transfer status
+- [ ] Mugshot capture UI (photo upload linked to Person profile)
+- [x] AFIS fingerprint reference ID field
+- [ ] Booking sheet print/PDF export
+- [ ] Holding cell occupancy board for precinct admins
+
+### BOLO / Wanted Persons Alerts
+- [x] `Alert` Prisma model (type: BOLO/APB/AMBER_ALERT/SILVER_ALERT, subject description, linked Person + Vehicle, issuing officer, affected tenant scope, expiry, status: ACTIVE/EXPIRED/CANCELLED)
+- [x] `GET/POST /api/alerts` — broadcast + list alerts
+- [x] `PUT /api/alerts/[id]` — cancel or extend expiry
+- [ ] Alert banner in app sidebar (visible to OFFICER + DISPATCHER roles in scope)
+- [ ] Create alert dialog from Person or Case detail page
+- [ ] Auto-expire cron job (or check on load)
+
+### Field Interview / Traffic Stop Reports
+- [x] `FieldContact` Prisma model (officer, date/time, location, contact type: TRAFFIC_STOP/FIELD_INTERVIEW/PEDESTRIAN_STOP/WARRANT_CHECK, person details, vehicle details, outcome, linked Person if matched)
+- [x] `GET/POST /api/field-contacts` — create + list reports
+- [x] Officer-facing field contact form (mobile-optimised)
+- [x] Search/filter contact history by person, plate, or officer
+- [ ] Community oversight report (aggregate field contacts by area/officer)
+
+---
+
+## PHASE 12 — Operational Completeness (Gap Fill: Important)
+
+### Evidence Room Management
+- [ ] Storage location management (rooms, shelves, lockers) as structured data (not just a string field)
+- [ ] Found/lost property records not linked to a case (`FoundProperty` model)
+- [ ] Evidence disposition workflow on case closure (RETURN / DESTROY / AUCTION / RETAIN)
+- [ ] Controlled substance sub-record (drug type, weight, lot number, lab submission status)
+- [ ] Evidence room inventory report (all items by location, by case status)
+
+### Crime Lab / Forensics Integration
+- [ ] `LabSubmission` Prisma model (evidence item, submission type: DNA/BALLISTICS/TOXICOLOGY/DIGITAL/FINGERPRINT/OTHER, submitted by, lab reference number, status: SUBMITTED → IN_ANALYSIS → RESULTS_READY → REVIEWED, results file URL, turnaround days)
+- [ ] `GET/POST /api/lab-submissions` — submit + list
+- [ ] `PUT /api/lab-submissions/[id]` — update status + attach results
+- [ ] Lab submissions tab on Evidence detail view
+- [ ] Overdue lab submissions alert (> expected turnaround)
+
+### Body-Worn Camera (BWC) Management
+- [ ] `BodyCamera` Prisma model (serial, model, assigned officer, battery state, last sync, status: AVAILABLE/ASSIGNED/CHARGING/FAULTY/DECOMMISSIONED)
+- [ ] `BWCEvent` model (camera, officer, shift, activation type: MANUAL/AUTO/INCIDENT, footage URL, flagged, retention expiry)
+- [ ] `GET/POST /api/bwc/cameras` — camera inventory
+- [ ] `GET/POST /api/bwc/events` — log activation events / footage
+- [ ] Footage review + flag workflow (supervisor access)
+- [ ] Compliance report: % of incidents with BWC footage per officer
+- [ ] Retention policy integration (auto-purge unflagged footage after N days)
+
+### Criminal History / Rap Sheet
+- [ ] Unified person history page: all cases, bookings, field contacts, warrants, and disciplinary links in one timeline view
+- [ ] Restricted access for juvenile records (role-gated, DETECTIVE+ only)
+- [ ] Cross-precinct history aggregation (reads across tenant scope by role)
+- [ ] Print-ready rap sheet PDF export
+
+### Civilian Complaint Registry
+- [ ] `CivilianComplaint` Prisma model (complainant info optional, subject officer, incident date, complaint type, description, status: RECEIVED → ASSIGNED → INVESTIGATING → RESOLVED, outcome: SUSTAINED/NOT_SUSTAINED/EXONERATED/UNFOUNDED, assigned reviewer)
+- [ ] Public complaint submission form (no login required, reference number issued)
+- [ ] `POST /api/complaints` — public submission
+- [ ] `GET/PUT /api/complaints/[id]` — internal review + status update
+- [ ] Internal Affairs review queue (PRECINCT_ADMIN+)
+- [ ] Aggregate complaint report in analytics
+
+### Court Appearance / Subpoena Tracking
+- [ ] `CourtAppearance` Prisma model (officer, case, court date, court name, matter type: WITNESS/PROSECUTION/HEARING, subpoena file URL, status: SCHEDULED/ATTENDED/EXCUSED/MISSED, overtime triggered)
+- [ ] `GET/POST /api/court-appearances` — schedule + list appearances
+- [ ] Officer court calendar view (alongside shift schedule)
+- [ ] Overtime flag auto-trigger when court date falls outside scheduled shift
+- [ ] Reminder notification N days before court date
+
+### Officer Safety / Panic System
+- [ ] Panic button UI element (persistent in topbar for OFFICER + DISPATCHER roles)
+- [ ] `POST /api/panic` — creates a priority dispatch incident with officer's last known GPS + timestamp
+- [ ] Push notification to all online dispatchers in scope
+- [ ] Panic event audit log
+- [ ] Man-down integration hook (sensor webhook → panic endpoint)
+
+---
+
+## PHASE 13 — Innovation & Differentiation
+
+### Real-time Situational Awareness Map (Internal Ops)
+- [ ] Internal-only ops map page (`/dispatch/map`) — distinct from public crime map
+- [ ] Live officer location pins with status colour (ON_DUTY/RESPONDING/ON_SCENE/OFF_DUTY)
+- [ ] Active incident overlays with priority colour coding
+- [ ] Coverage gap alerts (configurable: area with no officer within N-minute radius)
+- [ ] Nearest hospital / trauma centre distance overlay
+- [ ] Traffic camera thumbnail embed (external URL per camera record)
+- [ ] Role-gated: DISPATCHER + PRECINCT_ADMIN+ only
+
+### Officer Wellness & Mental Health Module
+- [ ] `WellnessCheckin` Prisma model (officer, date, mood score 1-5, optional note, flagged for follow-up)
+- [ ] `CounsellingSession` model (officer, date, provider, notes — access restricted to officer + HR admin)
+- [ ] Incident exposure score calculation (count + severity of traumatic incidents per officer per period)
+- [ ] Mandatory check-in prompt after critical incident (homicide, shooting, critical injury)
+- [ ] Counselling session scheduling + attendance tracking
+- [ ] Anonymized wellness trend dashboard for command (no individual names)
+- [ ] Peer support network: opt-in directory of peer support officers
+
+### National Missing Persons Coordination Hub
+- [ ] Dedicated `/cases/missing-persons` page (filtered view + extra fields)
+- [ ] `MissingPersonDetail` model extension (last seen location, distinguishing features, age-progression photo URL, national registry reference ID)
+- [ ] Multi-precinct search coordination board (which units are actively searching)
+- [ ] National registry sync hook (webhook out to external registry on create/resolve)
+- [ ] Amber/Silver Alert trigger button (generates Alert record + notifies dispatchers)
+- [ ] Shareable alert card generator (image + text for social media distribution)
+
+### Community Engagement Portal
+- [ ] `NeighbourhoodWatch` Prisma model (area name, tenant, coordinator contact, member count, active)
+- [ ] `CommunityEvent` model (title, description, officer host, location, date, public)
+- [ ] Public community page (`/community`) — watch group directory + event calendar
+- [ ] Community officer profile pages (officer bio, area assigned, contact method)
+- [ ] Satisfaction survey after public interactions (tip submission, FOIA response)
+- [ ] Officer commendation submission form (public, no login)
+- [ ] Commendation review queue in HR module
+
+### Dynamic Patrol Zone Optimizer
+- [ ] `PatrolZone` Prisma model (name, GeoJSON boundary, recommended officer count, shift)
+- [ ] Zone suggestion algorithm (crime density + current officer locations → suggested boundaries)
+- [ ] Command approval / override UI (drag-to-adjust zone boundaries on map)
+- [ ] Live coverage metric: % of zone area within N-minute officer response time
+- [ ] Zone performance history (response times, incident density per zone per shift)
+
+### Drone Fleet Management
+- [ ] `Drone` Prisma model (serial, model, status: AVAILABLE/DEPLOYED/CHARGING/MAINTENANCE/DECOMMISSIONED, battery %, last service, certification expiry)
+- [ ] `DroneDeployment` model (drone, operator, linked incident, launch/land times, footage URL)
+- [ ] Drone inventory page under ERP
+- [ ] Deployment log linked to dispatch incident
+- [ ] Footage stored as case evidence via `storage.ts`
+- [ ] Certification / flight zone compliance tracking
+- [ ] Launch authorization workflow (PRECINCT_ADMIN approval required)
 
 ---
 
 ### Legend
 - `[x]` — Completed / Implemented
 - `[ ]` — Not yet started / Requires additional work
-
-

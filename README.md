@@ -347,38 +347,101 @@ jobs:
 
 ## Health Check & Monitoring
 
-The app exposes a health check endpoint at `/api/health`:
+### Health Endpoint
+
+The app exposes a health check endpoint at `GET /api/health`. It returns JSON with connectivity status for the database and Redis (if configured), plus memory and CPU usage:
 
 ```json
 {
   "status": "healthy",
   "timestamp": "2026-05-28T00:00:00.000Z",
   "uptime": 12345,
-  "database": {
-    "status": "connected",
-    "latencyMs": 2
+  "service": "tpt-police",
+  "version": "0.1.0",
+  "environment": "production",
+  "checks": {
+    "database": { "status": "connected", "latencyMs": 2 },
+    "redis": { "status": "connected", "latencyMs": 1 }
   },
   "memory": {
-    "rss": 123456,
-    "heapTotal": 78901,
-    "heapUsed": 45678,
-    "external": 1234
+    "heapUsed": 45,
+    "heapTotal": 78,
+    "rss": 120,
+    "unit": "MB"
+  },
+  "cpu": {
+    "loadAvg": { "user": 12345, "system": 6789 }
   }
 }
 ```
 
 Use this endpoint for:
 - **Load balancer health checks** (configure to hit `/api/health`)
-- **Container orchestration liveness probes** (Kubernetes)
-- **Monitoring tools** (Datadog, New Relic, Prometheus)
+- **Container orchestration liveness/readiness probes** (Kubernetes `httpGet`)
+- **Monitoring tools** (Datadog, New Relic, Prometheus, Grafana)
+
+### Prometheus Metrics Endpoint
+
+A Prometheus-compatible metrics endpoint is available at `GET /api/metrics`. It exposes the following metrics in OpenMetrics text format:
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `tpt_police_build_info` | gauge | Build version, Node version, environment |
+| `tpt_police_uptime_seconds_total` | counter | Application uptime in seconds |
+| `tpt_police_memory_heap_bytes` | gauge | Heap used memory in bytes |
+| `tpt_police_memory_heap_total_bytes` | gauge | Heap total memory in bytes |
+| `tpt_police_memory_rss_bytes` | gauge | Resident set size in bytes |
+| `tpt_police_database_up` | gauge | Database connectivity (1 = connected, 0 = disconnected) |
+| `tpt_police_database_latency_ms` | gauge | Database query latency in milliseconds |
+
+**Prometheus scrape config:**
+```yaml
+scrape_configs:
+  - job_name: 'tpt-police'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['localhost:3000']
+    metrics_path: '/api/metrics'
+```
+
+### Structured JSON Logging
+
+In production, the application outputs **newline-delimited JSON (NDJSON)** to stdout/stderr for ingestion by any log aggregation platform:
+
+- **Log levels**: `debug`, `info`, `warn`, `error`, `fatal`
+- **Every log entry includes**: `timestamp`, `level`, `message`, `service`, `environment`, and optionally `requestId`, `userId`, `tenantId`, `durationMs`, `statusCode`, `stack`
+- **Development mode**: Colorized human-readable output with contextual badges
+- **Log level control**: Set `LOG_LEVEL` environment variable (`debug`, `info`, `warn`, `error`, `fatal`). Defaults to `info` in production, `debug` in development.
+
+**Example production log line:**
+```json
+{"timestamp":"2026-05-28T00:00:00.000Z","level":"info","message":"Request completed","service":"tpt-police","environment":"production","requestId":"abc-123","method":"GET","path":"/api/health","statusCode":200,"durationMs":42}
+```
+
+**Integration targets:**
+| Platform | Method |
+|----------|--------|
+| **Datadog** | Agent tailing stdout/stderr |
+| **Grafana Loki** | Promtail scraping container logs |
+| **AWS CloudWatch** | Container insights / CloudWatch agent |
+| **ELK Stack** | Filebeat → Logstash → Elasticsearch |
+| **Splunk** | Universal forwarder tailing stdout |
+| **Papertrail / Loggly** | Remote syslog forwarding |
 
 ### Monitoring Recommendations
 
-- **Uptime monitoring**: Ping `/api/health` every 30 seconds
-- **Error tracking**: Integrate Sentry or similar
-- **Performance monitoring**: Vercel Analytics or Datadog RUM
+- **Uptime monitoring**: Ping `/api/health` every 30 seconds; alert on non-200 responses
+- **Metrics scraping**: Configure Prometheus (or Grafana Cloud) to scrape `/api/metrics` every 15s
+- **Error tracking**: Integrate Sentry for exception capture and performance tracing
+- **Dashboarding**: Import the Prometheus metrics into Grafana for real-time dashboards (memory, DB latency, uptime)
+- **Log aggregation**: Route container stdout/stderr to your logging platform and create alerts for `"level":"error"` and `"level":"fatal"` entries
 - **Database monitoring**: Use RDS Performance Insights / Cloud SQL Query Insights
-- **Alerting**: Set up alerts for health check failures, high DB latency, 5xx errors
+- **Alerting rules**:
+  - Health check returns non-200 for >1 minute
+  - Database latency > 500ms
+  - Memory usage > 80% of heap total
+  - Error rate > 5% of total requests
+  - Uptime drops unexpectedly (container restart)
 
 ---
 

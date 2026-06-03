@@ -27,6 +27,7 @@ import {
   MapPin,
   FileText,
   Building2,
+  Siren,
 } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 
@@ -44,6 +45,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Scheduling", href: "/hr/scheduling", icon: Calendar, roles: ["SUPER_ADMIN", "PRECINCT_ADMIN", "OFFICER"] },
   { label: "ERP", href: "/erp", icon: Truck, roles: ["SUPER_ADMIN", "PRECINCT_ADMIN"] },
   { label: "Dispatch", href: "/dispatch", icon: Radio, roles: ["SUPER_ADMIN", "PRECINCT_ADMIN", "DISPATCHER", "OFFICER"] },
+  { label: "Operations", href: "/operations", icon: Siren, roles: ["SUPER_ADMIN", "PRECINCT_ADMIN", "DETECTIVE", "OFFICER", "DISPATCHER"] },
   { label: "Crime Map", href: "/crime-map", icon: MapPin, roles: ["SUPER_ADMIN", "PROVINCE_ADMIN", "CITY_ADMIN", "PRECINCT_ADMIN", "DETECTIVE"] },
   { label: "Reports", href: "/reports", icon: BarChart3, roles: ["SUPER_ADMIN", "PROVINCE_ADMIN", "CITY_ADMIN", "PRECINCT_ADMIN"] },
   { label: "FOIA Requests", href: "/foia", icon: FileText, roles: ["SUPER_ADMIN", "PRECINCT_ADMIN"] },

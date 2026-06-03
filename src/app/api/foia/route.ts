@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { checkRateLimit, getRateLimitIdentifier } from "@/lib/rate-limit";
+import { validateCsrf } from "@/lib/csrf";
 
 const createFoiaSchema = z.object({
   requesterName: z.string().min(1),
@@ -66,6 +68,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  // Rate limit: max 5 FOIA submissions per IP per 10 minutes
+  const rlIdentifier = getRateLimitIdentifier(undefined, request);
+  const rlResult = checkRateLimit(rlIdentifier, { max: 5, windowMs: 10 * 60 * 1000, prefix: "rl:foia" });
+  if (rlResult) return rlResult;
+
+  // CSRF check for mutating request
+  const csrfResult = validateCsrf(request);
+  if (csrfResult) return csrfResult;
+
   try {
     const body = await request.json();
     const parsed = createFoiaSchema.safeParse(body);
@@ -110,6 +121,10 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  // CSRF check for mutating request
+  const csrfResult = validateCsrf(request);
+  if (csrfResult) return csrfResult;
+
   const session = await auth();
   if (!session || !["SUPER_ADMIN", "PROVINCE_ADMIN", "CITY_ADMIN", "PRECINCT_ADMIN"].includes(session.user.role)) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 403 });

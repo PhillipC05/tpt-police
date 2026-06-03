@@ -184,6 +184,65 @@ enum IncidentStatus {
   CANCELLED
 }
 
+// ─── Phase 11 enums ────────────────────────────
+
+enum WarrantType {
+  ARREST
+  SEARCH
+  PROTECTION
+}
+
+enum WarrantStatus {
+  ISSUED
+  SERVED
+  RETURNED
+  EXPIRED
+}
+
+enum ForceType {
+  VERBAL
+  PHYSICAL
+  RESTRAINT
+  CEW
+  FIREARM
+  OTHER
+}
+
+enum UseOfForceStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  REVIEWED
+  ESCALATED
+}
+
+enum BookingStatus {
+  BOOKED
+  BAILED
+  RELEASED
+  TRANSFERRED
+  CHARGED
+}
+
+enum AlertType {
+  BOLO
+  APB
+  AMBER_ALERT
+  SILVER_ALERT
+}
+
+enum AlertStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum FieldContactType {
+  TRAFFIC_STOP
+  FIELD_INTERVIEW
+  PEDESTRIAN_STOP
+  WARRANT_CHECK
+}
+
 // ─────────────────────────────────────────────
 // MULTI-TENANCY
 // ─────────────────────────────────────────────
@@ -216,6 +275,13 @@ model Tenant {
   expenseClaims    ExpenseClaim[]
   subscription     Subscription?
   dataRetentionPolicy DataRetentionPolicy?
+  crimeMapPrivacySetting CrimeMapPrivacySetting?
+  scheduledReports   ScheduledReport[]
+  warrants           Warrant[]
+  useOfForce         UseOfForce[]
+  bookings           Booking[]
+  alerts             Alert[]
+  fieldContacts      FieldContact[]
 
   @@index([parentId])
   @@index([type])
@@ -264,6 +330,14 @@ model User {
   shiftSwapRequests ShiftSwap[] @relation("ShiftSwapRequestor")
   shiftSwapTargets  ShiftSwap[] @relation("ShiftSwapTarget")
   officerLocation   OfficerLocation?
+  scheduledReports  ScheduledReport[]
+  warrantsIssued       Warrant[]    @relation("WarrantIssuedBy")
+  warrantsServed       Warrant[]    @relation("WarrantServedBy")
+  uofReports           UseOfForce[] @relation("UofFOfficer")
+  uofSupervisedReports UseOfForce[] @relation("UofFSupervisor")
+  bookingsMade         Booking[]    @relation("BookingOfficer")
+  alertsIssued         Alert[]      @relation("AlertIssuedBy")
+  fieldContacts        FieldContact[] @relation("FieldContactOfficer")
 
   @@index([tenantId])
   @@index([email])
@@ -357,6 +431,9 @@ model Case {
   handoff        CourtHandoff?
   linkedIncident Incident?        @relation(fields: [linkedIncidentId], references: [id])
   linkedIncidentId String?
+  warrants       Warrant[]
+  useOfForce     UseOfForce[]
+  bookings       Booking[]
 
   @@index([tenantId])
   @@index([status])
@@ -461,8 +538,12 @@ model Person {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  caseLinks  CasePersonLink[]
-  statements Statement[]
+  caseLinks    CasePersonLink[]
+  statements   Statement[]
+  warrants     Warrant[]
+  bookings     Booking[]
+  alerts       Alert[]
+  fieldContacts FieldContact[]
 
   @@index([idNumber])
 }
@@ -550,6 +631,7 @@ model Incident {
   rawPayload     Json?
 
   linkedCases    Case[]
+  useOfForce     UseOfForce[]
 
   @@index([tenantId])
   @@index([status])
@@ -997,6 +1079,53 @@ model PurchaseOrder {
 }
 
 // ─────────────────────────────────────────────
+// REPORTING & ANALYTICS
+// ─────────────────────────────────────────────
+
+model ScheduledReport {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?  @db.Text
+  metrics     Json     @default("[]")
+  filters     Json     @default("{}")
+  schedule    String   @default("weekly")      // daily, weekly, monthly
+  recipients  Json     @default("[]")           // string[] of email addresses
+  format      String   @default("pdf")
+  lastSentAt  DateTime?
+  nextRunAt   DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([nextRunAt])
+}
+
+// ─────────────────────────────────────────────
+// PUBLIC PORTAL — CRIME MAP PRIVACY
+// ─────────────────────────────────────────────
+
+model CrimeMapPrivacySetting {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  heatmapEnabled  Boolean  @default(true)
+  showIncidentMarkers Boolean @default(true)
+  anonymizeLocations  Boolean @default(true)
+  locationJitterKm    Float   @default(0.5)
+  minIncidentsForDisplay Int @default(3)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+// ─────────────────────────────────────────────
 // PUBLIC PORTAL
 // ─────────────────────────────────────────────
 
@@ -1038,4 +1167,150 @@ model FoiaRequest {
 
   @@index([tenantId])
   @@index([referenceNumber])
+}
+
+// ─────────────────────────────────────────────
+// PHASE 11 — CORE OPERATIONS
+// ─────────────────────────────────────────────
+
+model Warrant {
+  id                String        @id @default(cuid())
+  tenantId          String
+  tenant            Tenant        @relation(fields: [tenantId], references: [id])
+  warrantNumber     String        @unique
+  type              WarrantType
+  status            WarrantStatus @default(ISSUED)
+  subject           String
+  personId          String?
+  person            Person?       @relation(fields: [personId], references: [id])
+  caseId            String?
+  case              Case?         @relation(fields: [caseId], references: [id])
+  issuedById        String
+  issuedBy          User          @relation("WarrantIssuedBy", fields: [issuedById], references: [id])
+  servedById        String?
+  servedBy          User?         @relation("WarrantServedBy", fields: [servedById], references: [id])
+  issuingMagistrate String?
+  description       String        @db.Text
+  expiresAt         DateTime?
+  servedAt          DateTime?
+  returnedAt        DateTime?
+  notes             String?       @db.Text
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([personId])
+}
+
+model UseOfForce {
+  id                String           @id @default(cuid())
+  tenantId          String
+  tenant            Tenant           @relation(fields: [tenantId], references: [id])
+  officerId         String
+  officer           User             @relation("UofFOfficer", fields: [officerId], references: [id])
+  supervisorId      String?
+  supervisor        User?            @relation("UofFSupervisor", fields: [supervisorId], references: [id])
+  incidentId        String?
+  incident          Incident?        @relation(fields: [incidentId], references: [id])
+  caseId            String?
+  case              Case?            @relation(fields: [caseId], references: [id])
+  forceTypes        Json
+  subjectResistance String?
+  officerInjured    Boolean          @default(false)
+  subjectInjured    Boolean          @default(false)
+  narrative         String           @db.Text
+  status            UseOfForceStatus @default(SUBMITTED)
+  supervisorNotes   String?          @db.Text
+  reviewedAt        DateTime?
+  incidentDate      DateTime
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([tenantId])
+  @@index([officerId])
+  @@index([status])
+}
+
+model Booking {
+  id                   String        @id @default(cuid())
+  tenantId             String
+  tenant               Tenant        @relation(fields: [tenantId], references: [id])
+  bookingNumber        String        @unique
+  personId             String
+  person               Person        @relation(fields: [personId], references: [id])
+  arrestingOfficerId   String
+  arrestingOfficer     User          @relation("BookingOfficer", fields: [arrestingOfficerId], references: [id])
+  caseId               String?
+  case                 Case?         @relation(fields: [caseId], references: [id])
+  charges              Json          @default("[]")
+  bailAmount           Float?
+  bailStatus           String?
+  holdingCell          String?
+  mugShotUrl           String?
+  afisReference        String?
+  status               BookingStatus @default(BOOKED)
+  arrestedAt           DateTime
+  releasedAt           DateTime?
+  notes                String?       @db.Text
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@index([tenantId])
+  @@index([personId])
+  @@index([status])
+}
+
+model Alert {
+  id                 String      @id @default(cuid())
+  tenantId           String
+  tenant             Tenant      @relation(fields: [tenantId], references: [id])
+  type               AlertType
+  status             AlertStatus @default(ACTIVE)
+  title              String
+  description        String      @db.Text
+  personId           String?
+  person             Person?     @relation(fields: [personId], references: [id])
+  vehiclePlate       String?
+  vehicleDescription String?
+  issuedById         String
+  issuedBy           User        @relation("AlertIssuedBy", fields: [issuedById], references: [id])
+  scopeTenantId      String?
+  expiresAt          DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([type])
+}
+
+model FieldContact {
+  id              String           @id @default(cuid())
+  tenantId        String
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  officerId       String
+  officer         User             @relation("FieldContactOfficer", fields: [officerId], references: [id])
+  contactType     FieldContactType
+  contactDate     DateTime
+  location        String?
+  latitude        Float?
+  longitude       Float?
+  subjectName     String?
+  subjectDob      String?
+  subjectIdNumber String?
+  vehiclePlate    String?
+  vehicleMake     String?
+  vehicleModel    String?
+  personId        String?
+  person          Person?          @relation(fields: [personId], references: [id])
+  outcome         String?
+  notes           String?          @db.Text
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([tenantId])
+  @@index([officerId])
+  @@index([personId])
 }

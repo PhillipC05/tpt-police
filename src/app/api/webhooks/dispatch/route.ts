@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import type { IncidentStatus, Prisma } from "@prisma/client";
+import { checkRateLimit, getRateLimitIdentifier } from "@/lib/rate-limit";
 
 const webhookSecret = process.env.DISPATCH_WEBHOOK_SECRET;
 
@@ -16,11 +18,16 @@ const incidentWebhookSchema = z.object({
   tenantId: z.string(),
   unitId: z.string().optional(),
   unitStatus: z.string().optional(),
-  timestamp: z.string().datetime(),
-  rawPayload: z.record(z.unknown()).optional(),
+  timestamp: z.iso.datetime(),
+  rawPayload: z.record(z.string(), z.unknown()).optional(),
 });
 
 export async function POST(request: Request) {
+  // Rate limit: max 60 webhook requests per IP per minute
+  const rlIdentifier = getRateLimitIdentifier(undefined, request);
+  const rlResult = checkRateLimit(rlIdentifier, { max: 60, windowMs: 60_000, prefix: "rl:webhook" });
+  if (rlResult) return rlResult;
+
   // Validate webhook secret
   const authHeader = request.headers.get("authorization");
   if (webhookSecret && authHeader !== `Bearer ${webhookSecret}`) {
@@ -41,9 +48,9 @@ export async function POST(request: Request) {
       await prisma.incident.update({
         where: { externalId },
         data: {
-          status,
+          status: status as IncidentStatus,
           resolvedAt: new Date(),
-          rawPayload: rawPayload ?? undefined,
+          rawPayload: rawPayload as Prisma.InputJsonValue ?? undefined,
         },
       });
       return NextResponse.json({ message: "Incident updated" });
@@ -53,23 +60,23 @@ export async function POST(request: Request) {
       where: { externalId: externalId ?? "" },
       update: {
         type,
-        status,
+        status: status as IncidentStatus,
         description,
         location,
         latitude,
         longitude,
-        rawPayload: rawPayload ?? undefined,
+        rawPayload: rawPayload as Prisma.InputJsonValue ?? undefined,
       },
       create: {
         tenantId,
         externalId,
         type,
-        status,
+        status: status as IncidentStatus,
         description,
         location,
         latitude,
         longitude,
-        rawPayload: rawPayload ?? undefined,
+        rawPayload: rawPayload as Prisma.InputJsonValue ?? undefined,
       },
     });
 

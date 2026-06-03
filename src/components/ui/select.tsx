@@ -6,7 +6,7 @@ import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { cn } from "@/lib/utils";
 import { ChevronDownIcon, CheckIcon } from "lucide-react";
 
-function Select({ value, onValueChange, ...props }: SelectPrimitive.Root.Props<string> & { onValueChange?: (value: string) => void }) {
+function Select({ value, onValueChange, ...props }: Omit<SelectPrimitive.Root.Props<string>, "onValueChange"> & { onValueChange?: (value: string) => void }) {
   return (
     <SelectPrimitive.Root
       value={value ?? null}

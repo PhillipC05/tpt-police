@@ -39,22 +39,22 @@ export async function GET(request: Request) {
     prisma.case.count({ where: { tenantId } }),
     prisma.case.count({ where: { tenantId, status: { not: "CLOSED" } } }),
     prisma.case.groupBy({
-      by: ["type"],
+      by: ["type"] as const,
       _count: { id: true },
       where: { tenantId, createdAt: { gte: since } },
       orderBy: { _count: { id: "desc" } },
-    }) as Promise<TypeGroup[]>,
+    }) as unknown as Promise<TypeGroup[]>,
     prisma.case.groupBy({
-      by: ["status"],
+      by: ["status"] as const,
       _count: { id: true },
       where: { tenantId },
-    }) as Promise<StatusGroup[]>,
+    }) as unknown as Promise<StatusGroup[]>,
     prisma.user.count({ where: { tenantId, status: "ACTIVE", role: { in: ["DETECTIVE", "OFFICER"] } } }),
     prisma.caseAssignment.groupBy({
-      by: ["userId"],
+      by: ["userId"] as const,
       _count: { id: true },
       where: { case: { tenantId } },
-    }) as Promise<UserGroup[]>,
+    }) as unknown as Promise<UserGroup[]>,
     prisma.case.findMany({
       where: { tenantId, createdAt: { gte: since } },
       select: { createdAt: true },

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { z } from "zod";
+import { checkRateLimit, getRateLimitIdentifier } from "@/lib/rate-limit";
+import { validateCsrf } from "@/lib/csrf";
 
 const updateLocationSchema = z.object({
   latitude: z.number().min(-90).max(90),
@@ -49,8 +51,17 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  // Rate limit: max 30 location updates per user per minute
   const session = await auth();
   if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+  const rlIdentifier = getRateLimitIdentifier(session.user.id);
+  const rlResult = checkRateLimit(rlIdentifier, { max: 30, windowMs: 60_000, prefix: "rl:loc" });
+  if (rlResult) return rlResult;
+
+  // CSRF check for mutating request
+  const csrfResult = validateCsrf(request);
+  if (csrfResult) return csrfResult;
 
   try {
     const body = await request.json();

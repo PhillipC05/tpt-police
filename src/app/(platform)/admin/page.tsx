@@ -7,6 +7,7 @@ import { TenantManagementClient } from "./tenant-management-client";
 import { BillingClient } from "@/components/admin/billing-client";
 import { RetentionClient } from "@/components/admin/retention-client";
 import { ComplianceClient } from "@/components/admin/compliance-client";
+import { CrimeMapPrivacyClient } from "@/components/admin/crime-map-privacy-client";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -112,6 +113,8 @@ export default async function AdminPage() {
           <ComplianceClient />
         </CardContent>
       </Card>
+
+      <CrimeMapPrivacyClient />
     </div>
   );
 }
