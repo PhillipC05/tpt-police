@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, UserX } from "lucide-react";
+import { Search, Plus, UserX, Download, Camera, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 
 interface Booking {
@@ -20,6 +20,7 @@ interface Booking {
   bailAmount: number | null;
   bailStatus: string | null;
   holdingCell: string | null;
+  mugShotUrl: string | null;
   arrestedAt: string;
   releasedAt: string | null;
   createdAt: string;
@@ -52,6 +53,7 @@ export function BookingsClient() {
     arrestedAt: "",
     notes: "",
   });
+  const [mugshotUploading, setMugshotUploading] = useState<string | null>(null);
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
@@ -122,6 +124,38 @@ export function BookingsClient() {
       fetchBookings();
     } catch {
       toast.error("Failed to update booking");
+    }
+  };
+
+  const handleMugshotUpload = async (bookingId: string, file: File) => {
+    setMugshotUploading(bookingId);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`/api/bookings/${bookingId}/mugshot`, { method: "POST", body: formData });
+      if (!res.ok) throw new Error((await res.json()).message);
+      toast.success("Mugshot uploaded");
+      fetchBookings();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to upload mugshot");
+    } finally {
+      setMugshotUploading(null);
+    }
+  };
+
+  const handleExport = async (id: string) => {
+    try {
+      const res = await fetch(`/api/bookings/${id}/export`);
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `booking-sheet-${id}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Failed to export booking sheet");
     }
   };
 
@@ -207,15 +241,21 @@ export function BookingsClient() {
             <Card key={b.id}>
               <CardContent className="p-4">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <UserX className="w-4 h-4 mt-1 text-muted-foreground shrink-0" />
-                    <div>
+                  <div className="flex items-start gap-3 flex-1">
+                    {b.mugShotUrl ? (
+                      <img src={b.mugShotUrl} alt="Mugshot" className="w-12 h-14 rounded object-cover shrink-0 border" />
+                    ) : (
+                      <div className="w-12 h-14 rounded bg-muted flex items-center justify-center shrink-0 border">
+                        <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono text-sm font-medium">{b.bookingNumber}</span>
                         <Badge variant={STATUS_VARIANTS[b.status]}>{b.status}</Badge>
                         {b.case && <Badge variant="outline" className="text-xs">{b.case.caseNumber}</Badge>}
                       </div>
-                      <p className="font-medium mt-0.5">
+                      <p className="font-medium mt-0.5 truncate">
                         {b.person.firstName} {b.person.lastName}
                         {b.person.idNumber && <span className="text-muted-foreground text-sm ml-2">({b.person.idNumber})</span>}
                       </p>
@@ -231,9 +271,34 @@ export function BookingsClient() {
                       </div>
                     </div>
                   </div>
-                  {b.status === "BOOKED" && (
-                    <Button size="sm" variant="outline" onClick={() => handleRelease(b.id)}>Release</Button>
-                  )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleMugshotUpload(b.id, file);
+                          e.target.value = "";
+                        }}
+                        disabled={mugshotUploading === b.id}
+                      />
+                      <Button size="sm" variant="ghost" disabled={mugshotUploading === b.id}>
+                        {mugshotUploading === b.id ? (
+                          <span className="animate-pulse">...</span>
+                        ) : (
+                          <Camera className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => handleExport(b.id)}>
+                      <Download className="w-4 h-4" />
+                    </Button>
+                    {b.status === "BOOKED" && (
+                      <Button size="sm" variant="outline" onClick={() => handleRelease(b.id)}>Release</Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -282,6 +282,17 @@ model Tenant {
   bookings           Booking[]
   alerts             Alert[]
   fieldContacts      FieldContact[]
+  storageLocations   StorageLocation[]
+  foundProperties    FoundProperty[]
+  labSubmissions     LabSubmission[]
+  civilianComplaints CivilianComplaint[]
+  courtAppearances   CourtAppearance[]
+  panicEvents        PanicEvent[]
+  neighbourhoodWatch NeighbourhoodWatch[]
+  communityEvents    CommunityEvent[]
+  officerCommendations OfficerCommendation[]
+  patrolZones        PatrolZone[]
+  drones             Drone[]
 
   @@index([parentId])
   @@index([type])
@@ -338,6 +349,16 @@ model User {
   bookingsMade         Booking[]    @relation("BookingOfficer")
   alertsIssued         Alert[]      @relation("AlertIssuedBy")
   fieldContacts        FieldContact[] @relation("FieldContactOfficer")
+  assignedCameras      BodyCamera[]   @relation("CameraAssignment")
+  bwcEvents            BWCEvent[]
+  complaintSubject     CivilianComplaint[] @relation("ComplaintSubjectOfficer")
+  complaintReviewer    CivilianComplaint[] @relation("ComplaintReviewer")
+  courtAppearances     CourtAppearance[]
+  panicEvents          PanicEvent[]
+  wellnessCheckins     WellnessCheckin[]
+  counsellingSessions  CounsellingSession[]
+  commendationsReceived OfficerCommendation[]
+  droneOperations      DroneDeployment[]
 
   @@index([tenantId])
   @@index([email])
@@ -434,6 +455,8 @@ model Case {
   warrants       Warrant[]
   useOfForce     UseOfForce[]
   bookings       Booking[]
+  dispositions   EvidenceDisposition[]
+  courtAppearances CourtAppearance[]
 
   @@index([tenantId])
   @@index([status])
@@ -500,6 +523,9 @@ model Evidence {
   createdAt    DateTime     @default(now())
 
   custodyChain EvidenceCustody[]
+  disposition   EvidenceDisposition?
+  controlledSubstance ControlledSubstance?
+  labSubmissions LabSubmission[]
 
   @@index([caseId])
 }
@@ -632,6 +658,7 @@ model Incident {
 
   linkedCases    Case[]
   useOfForce     UseOfForce[]
+  droneDeployments DroneDeployment[]
 
   @@index([tenantId])
   @@index([status])
@@ -1285,6 +1312,472 @@ model Alert {
   @@index([status])
   @@index([type])
 }
+
+// ─────────────────────────────────────────────
+// PHASE 12 — EVIDENCE ROOM MANAGEMENT
+// ─────────────────────────────────────────────
+
+model StorageLocation {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  name         String
+  type         String   // ROOM / SHELF / LOCKER / CABINET
+  parentId     String?
+  parent       StorageLocation? @relation("StorageLocationHierarchy", fields: [parentId], references: [id])
+  children     StorageLocation[] @relation("StorageLocationHierarchy")
+  description  String?
+  barcode      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+enum DispositionAction {
+  RETURN
+  DESTROY
+  AUCTION
+  RETAIN
+}
+
+model EvidenceDisposition {
+  id          String            @id @default(cuid())
+  evidenceId  String            @unique
+  evidence    Evidence          @relation(fields: [evidenceId], references: [id])
+  caseId      String
+  case        Case              @relation(fields: [caseId], references: [id])
+  action      DispositionAction
+  approvedById String
+  notes       String?           @db.Text
+  completedAt DateTime?
+  createdAt   DateTime          @default(now())
+
+  @@index([caseId])
+}
+
+model FoundProperty {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  description    String   @db.Text
+  foundAt        DateTime
+  foundBy        String?
+  locationFound  String?
+  category       String?
+  serialNumber   String?
+  status         String   @default("UNCLAIMED") // UNCLAIMED / CLAIMED / DESTROYED / AUCTIONED
+  claimedById    String?
+  claimedAt      DateTime?
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model ControlledSubstance {
+  id              String   @id @default(cuid())
+  evidenceId      String   @unique
+  evidence        Evidence @relation(fields: [evidenceId], references: [id])
+  drugType        String
+  weight          Float
+  unit            String   @default("g")
+  lotNumber       String?
+  labSubmitted    Boolean  @default(false)
+  labSubmissionId String?
+  status          String   @default("STORED") // STORED / SUBMITTED / ANALYZED / DESTROYED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([evidenceId])
+}
+
+// ─────────────────────────────────────────────
+// PHASE 12 — CRIME LAB / FORENSICS
+// ─────────────────────────────────────────────
+
+enum LabSubmissionType {
+  DNA
+  BALLISTICS
+  TOXICOLOGY
+  DIGITAL
+  FINGERPRINT
+  OTHER
+}
+
+enum LabSubmissionStatus {
+  SUBMITTED
+  IN_ANALYSIS
+  RESULTS_READY
+  REVIEWED
+}
+
+model LabSubmission {
+  id               String             @id @default(cuid())
+  tenantId         String
+  tenant           Tenant             @relation(fields: [tenantId], references: [id])
+  evidenceId       String?
+  evidence         Evidence?          @relation(fields: [evidenceId], references: [id])
+  type             LabSubmissionType
+  submittedById    String
+  labReferenceNo   String             @unique
+  status           LabSubmissionStatus @default(SUBMITTED)
+  resultsFileUrl   String?
+  resultsNotes     String?            @db.Text
+  expectedTurnaround Int?
+  turnaroundDays   Int?
+  reviewedAt       DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([tenantId])
+  @@index([evidenceId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────
+// PHASE 12 — BODY-WORN CAMERA
+// ─────────────────────────────────────────────
+
+enum CameraStatus {
+  AVAILABLE
+  ASSIGNED
+  CHARGING
+  FAULTY
+  DECOMMISSIONED
+}
+
+model BodyCamera {
+  id              String       @id @default(cuid())
+  serialNumber    String       @unique
+  model           String
+  assignedToId    String?
+  assignedTo      User?        @relation("CameraAssignment", fields: [assignedToId], references: [id])
+  batteryState    Int          @default(100)
+  lastSyncAt      DateTime?
+  status          CameraStatus @default(AVAILABLE)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  events          BWCEvent[]
+
+  @@index([assignedToId])
+  @@index([status])
+}
+
+enum BWCActivationType {
+  MANUAL
+  AUTO
+  INCIDENT
+}
+
+model BWCEvent {
+  id              String            @id @default(cuid())
+  cameraId        String
+  camera          BodyCamera        @relation(fields: [cameraId], references: [id])
+  officerId       String
+  officer         User              @relation(fields: [officerId], references: [id])
+  shiftId         String?
+  activationType  BWCActivationType
+  footageUrl      String?
+  duration        Int?
+  flagged         Boolean           @default(false)
+  flaggedById     String?
+  flagReason      String?
+  retentionExpiry DateTime?
+  startedAt       DateTime
+  endedAt         DateTime?
+  createdAt       DateTime          @default(now())
+
+  @@index([cameraId])
+  @@index([officerId])
+  @@index([flagged])
+}
+
+// ─────────────────────────────────────────────
+// PHASE 12 — CIVILIAN COMPLAINT REGISTRY
+// ─────────────────────────────────────────────
+
+enum ComplaintStatus {
+  RECEIVED
+  ASSIGNED
+  INVESTIGATING
+  RESOLVED
+}
+
+enum ComplaintOutcome {
+  SUSTAINED
+  NOT_SUSTAINED
+  EXONERATED
+  UNFOUNDED
+}
+
+model CivilianComplaint {
+  id              String            @id @default(cuid())
+  tenantId        String
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  referenceNumber String            @unique
+  complainantName String?
+  complainantEmail String?
+  complainantPhone String?
+  subjectOfficerId String?
+  subjectOfficer  User?             @relation("ComplaintSubjectOfficer", fields: [subjectOfficerId], references: [id])
+  incidentDate    DateTime
+  complaintType   String
+  description     String            @db.Text
+  status          ComplaintStatus   @default(RECEIVED)
+  outcome         ComplaintOutcome?
+  assignedReviewerId String?
+  assignedReviewer User?             @relation("ComplaintReviewer", fields: [assignedReviewerId], references: [id])
+  responseNotes   String?           @db.Text
+  resolvedAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([tenantId])
+  @@index([referenceNumber])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────
+// PHASE 12 — COURT APPEARANCE TRACKING
+// ─────────────────────────────────────────────
+
+enum CourtMatterType {
+  WITNESS
+  PROSECUTION
+  HEARING
+}
+
+enum CourtAppearanceStatus {
+  SCHEDULED
+  ATTENDED
+  EXCUSED
+  MISSED
+}
+
+model CourtAppearance {
+  id              String                @id @default(cuid())
+  tenantId        String
+  tenant          Tenant                @relation(fields: [tenantId], references: [id])
+  officerId       String
+  officer         User                  @relation(fields: [officerId], references: [id])
+  caseId          String?
+  case            Case?                 @relation(fields: [caseId], references: [id])
+  courtDate       DateTime
+  courtName       String
+  matterType      CourtMatterType
+  subpoenaFileUrl String?
+  status          CourtAppearanceStatus @default(SCHEDULED)
+  overtimeTriggered Boolean             @default(false)
+  notes           String?               @db.Text
+  reminderSent    Boolean               @default(false)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([tenantId])
+  @@index([officerId])
+  @@index([courtDate])
+}
+
+// ─────────────────────────────────────────────
+// PHASE 12 — OFFICER SAFETY / PANIC SYSTEM
+// ─────────────────────────────────────────────
+
+model PanicEvent {
+  id              String   @id @default(cuid())
+  officerId       String
+  officer         User     @relation(fields: [officerId], references: [id])
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  latitude        Float?
+  longitude       Float?
+  resolvedAt      DateTime?
+  resolvedById    String?
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  @@index([officerId])
+  @@index([tenantId])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────
+// PHASE 13 — OFFICER WELLNESS & MENTAL HEALTH
+// ─────────────────────────────────────────────
+
+model WellnessCheckin {
+  id              String   @id @default(cuid())
+  officerId       String
+  officer         User     @relation(fields: [officerId], references: [id])
+  moodScore       Int      // 1-5
+  note            String?  @db.Text
+  flagged         Boolean  @default(false)
+  checkinDate     DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@index([officerId])
+  @@index([checkinDate])
+}
+
+model CounsellingSession {
+  id              String   @id @default(cuid())
+  officerId       String
+  officer         User     @relation(fields: [officerId], references: [id])
+  provider        String
+  sessionDate     DateTime
+  notes           String?  @db.Text
+  attended        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([officerId])
+}
+
+// ─────────────────────────────────────────────
+// PHASE 13 — COMMUNITY ENGAGEMENT
+// ─────────────────────────────────────────────
+
+model NeighbourhoodWatch {
+  id               String   @id @default(cuid())
+  tenantId         String
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  name             String
+  coordinatorName  String
+  coordinatorEmail String?
+  coordinatorPhone String?
+  memberCount      Int      @default(0)
+  area             String?
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model CommunityEvent {
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  title           String
+  description     String?  @db.Text
+  officerHostId   String?
+  location        String?
+  eventDate       DateTime
+  isPublic        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model OfficerCommendation {
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  officerId       String
+  officer         User     @relation(fields: [officerId], references: [id])
+  citizenName     String?
+  citizenEmail    String?
+  description     String   @db.Text
+  reviewed        Boolean  @default(false)
+  reviewedById    String?
+  createdAt       DateTime @default(now())
+  reviewedAt      DateTime?
+
+  @@index([tenantId])
+  @@index([officerId])
+}
+
+// ─────────────────────────────────────────────
+// PHASE 13 — PATROL ZONE OPTIMIZER
+// ─────────────────────────────────────────────
+
+model PatrolZone {
+  id              String    @id @default(cuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  name            String
+  geoJsonBoundary Json?
+  recommendedOfficerCount Int @default(1)
+  shiftType       ShiftType?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  zoneHistory     PatrolZoneHistory[]
+
+  @@index([tenantId])
+}
+
+model PatrolZoneHistory {
+  id            String   @id @default(cuid())
+  zoneId        String
+  zone          PatrolZone @relation(fields: [zoneId], references: [id])
+  avgResponseTime Float?
+  incidentDensity Float?
+  officerCount   Int?
+  recordedAt     DateTime @default(now())
+
+  @@index([zoneId])
+}
+
+// ─────────────────────────────────────────────
+// PHASE 13 — DRONE FLEET MANAGEMENT
+// ─────────────────────────────────────────────
+
+enum DroneStatus {
+  AVAILABLE
+  DEPLOYED
+  CHARGING
+  MAINTENANCE
+  DECOMMISSIONED
+}
+
+model Drone {
+  id                String     @id @default(cuid())
+  tenantId          String
+  tenant            Tenant     @relation(fields: [tenantId], references: [id])
+  serialNumber      String     @unique
+  model             String
+  status            DroneStatus @default(AVAILABLE)
+  batteryPercent    Int        @default(100)
+  lastServiceAt     DateTime?
+  certificationExpiry DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  deployments       DroneDeployment[]
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+model DroneDeployment {
+  id              String   @id @default(cuid())
+  droneId         String
+  drone           Drone    @relation(fields: [droneId], references: [id])
+  operatorId      String
+  operator        User     @relation(fields: [operatorId], references: [id])
+  incidentId      String?
+  incident        Incident? @relation(fields: [incidentId], references: [id])
+  launchedAt      DateTime
+  landedAt        DateTime?
+  footageUrl      String?
+  notes           String?  @db.Text
+  authorizedById  String?
+  approved        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([droneId])
+  @@index([operatorId])
+}
+
+// ─────────────────────────────────────────────
+// PHASE 11 END MODELS (FieldContact)
+// ─────────────────────────────────────────────
 
 model FieldContact {
   id              String           @id @default(cuid())
