@@ -2,17 +2,16 @@ import type { NextConfig } from "next";
 
 const cspHeader = `
   default-src 'self';
-  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com;
-  style-src 'self' 'unsafe-inline' https://unpkg.com;
+  script-src 'self' 'unsafe-inline' 'strict-dynamic' https:;
+  style-src 'self' 'unsafe-inline';
   img-src 'self' data: blob: https:;
   font-src 'self' data:;
   connect-src 'self' https: ws: wss:;
-  frame-src 'self';
+  frame-src 'none';
   object-src 'none';
   base-uri 'self';
   form-action 'self';
   frame-ancestors 'none';
-  block-all-mixed-content;
   upgrade-insecure-requests;
 `;
 
@@ -50,6 +49,14 @@ const nextConfig: NextConfig = {
           {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
+          },
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin",
+          },
+          {
+            key: "Cross-Origin-Embedder-Policy",
+            value: "require-corp",
           },
         ],
       },

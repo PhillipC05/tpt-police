@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import type { IncidentStatus, Prisma } from "@prisma/client";
 import { checkRateLimit, getRateLimitIdentifier } from "@/lib/rate-limit";
+import { verifySecret } from "@/lib/secrets";
 
 const webhookSecret = process.env.DISPATCH_WEBHOOK_SECRET;
 
@@ -28,9 +29,16 @@ export async function POST(request: Request) {
   const rlResult = checkRateLimit(rlIdentifier, { max: 60, windowMs: 60_000, prefix: "rl:webhook" });
   if (rlResult) return rlResult;
 
-  // Validate webhook secret
+  // Validate webhook secret using constant-time comparison
   const authHeader = request.headers.get("authorization");
-  if (webhookSecret && authHeader !== `Bearer ${webhookSecret}`) {
+  if (!webhookSecret || !authHeader) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+  if (!authHeader.startsWith("Bearer ")) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+  const token = authHeader.slice("Bearer ".length);
+  if (!verifySecret(token, webhookSecret)) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
@@ -56,29 +64,46 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Incident updated" });
     }
 
-    const incident = await prisma.incident.upsert({
-      where: { externalId: externalId ?? "" },
-      update: {
-        type,
-        status: status as IncidentStatus,
-        description,
-        location,
-        latitude,
-        longitude,
-        rawPayload: rawPayload as Prisma.InputJsonValue ?? undefined,
-      },
-      create: {
-        tenantId,
-        externalId,
-        type,
-        status: status as IncidentStatus,
-        description,
-        location,
-        latitude,
-        longitude,
-        rawPayload: rawPayload as Prisma.InputJsonValue ?? undefined,
-      },
+    // Validate that the tenant exists
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) {
+      return NextResponse.json({ message: "Invalid tenant" }, { status: 400 });
+    }
+
+    // Find existing incident by externalId scoped to tenant
+    const existingIncident = await prisma.incident.findFirst({
+      where: { externalId, tenantId },
     });
+
+    let incident;
+    if (existingIncident) {
+      incident = await prisma.incident.update({
+        where: { id: existingIncident.id },
+        data: {
+          type,
+          status: status as IncidentStatus,
+          description,
+          location,
+          latitude,
+          longitude,
+          rawPayload: rawPayload as Prisma.InputJsonValue ?? undefined,
+        },
+      });
+    } else {
+      incident = await prisma.incident.create({
+        data: {
+          tenantId,
+          externalId,
+          type,
+          status: status as IncidentStatus,
+          description,
+          location,
+          latitude,
+          longitude,
+          rawPayload: rawPayload as Prisma.InputJsonValue ?? undefined,
+        },
+      });
+    }
 
     return NextResponse.json({ message: "Webhook processed", incidentId: incident.id });
   } catch (error) {

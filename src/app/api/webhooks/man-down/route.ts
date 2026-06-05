@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
+import { verifySecret } from "@/lib/secrets";
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
-  const expectedToken = process.env.WEBHOOK_SECRET || process.env.NEXTAUTH_SECRET;
-  if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
+  const expectedToken = process.env.MAN_DOWN_WEBHOOK_SECRET;
+  if (!expectedToken || !authHeader) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+  if (!authHeader.startsWith("Bearer ")) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+  const token = authHeader.slice("Bearer ".length);
+  if (!verifySecret(token, expectedToken)) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 

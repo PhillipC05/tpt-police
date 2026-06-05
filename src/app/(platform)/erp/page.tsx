@@ -1,13 +1,14 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Truck, Box, DollarSign, ArrowRight } from "lucide-react";
+import { Truck, Box, DollarSign, Drone, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 const modules = [
   { title: "Fleet Management", href: "/erp/fleet", icon: Truck, desc: "Vehicles, maintenance, fuel logs" },
   { title: "Asset Tracking", href: "/erp/assets", icon: Box, desc: "Equipment, weapons, uniforms" },
   { title: "Budget & Finance", href: "/erp/budget", icon: DollarSign, desc: "Budgets, purchase orders, expenses" },
+  { title: "Drone Fleet", href: "/erp/drones", icon: Drone, desc: "Drone inventory, deployments, certifications" },
 ];
 
 export default async function ErpPage() {
@@ -21,7 +22,7 @@ export default async function ErpPage() {
         <p className="text-muted-foreground">Manage fleet, assets, and departmental budgets.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         {modules.map((mod) => {
           const Icon = mod.icon;
           return (

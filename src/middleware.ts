@@ -2,7 +2,13 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { UserRole } from "@prisma/client";
 
-const PUBLIC_PATHS = ["/login", "/register", "/crime-map", "/foia", "/api/auth", "/api/webhooks", "/api/health"];
+const PUBLIC_PATHS = [
+  "/login", "/register",
+  "/crime-map", "/foia",
+  "/api/auth", "/api/webhooks", "/api/health",
+  "/api/public",
+  "/public",
+];
 
 const ROLE_HOME: Record<UserRole, string> = {
   SUPER_ADMIN: "/admin",

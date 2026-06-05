@@ -11,6 +11,8 @@
  *   const apiKey = getSecret("DISPATCH_API_KEY");
  */
 
+import { timingSafeEqual } from "crypto";
+
 // ─── Required secrets that must be set in production ──────────────────────
 
 const REQUIRED_SECRETS: string[] = [
@@ -70,6 +72,28 @@ export function validateRequiredSecrets(): string[] {
     }
   }
   return missing;
+}
+
+/**
+ * Constant-time comparison of two strings to prevent timing attacks.
+ * Use this for comparing secrets, API keys, and webhook tokens.
+ */
+export function verifySecret(provided: string, expected: string): boolean {
+  const buf1 = Buffer.from(provided);
+  const buf2 = Buffer.from(expected);
+  if (provided.length !== expected.length) {
+    // Compare truncated buffers to avoid leaking length info via timing
+    try {
+      timingSafeEqual(
+        buf1.subarray(0, Math.min(buf1.length, buf2.length)),
+        buf2.subarray(0, Math.min(buf1.length, buf2.length)),
+      );
+      return false; // lengths differ, so definitely not equal
+    } catch {
+      return false;
+    }
+  }
+  return timingSafeEqual(buf1, buf2);
 }
 
 /**

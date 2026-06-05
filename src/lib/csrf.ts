@@ -17,12 +17,11 @@ const CSRF_COOKIE_NAME = "csrf-token";
  * Generate a cryptographically random CSRF token (32 hex chars = 128 bits).
  */
 function generateToken(): string {
-  const chars = "0123456789abcdef";
-  let token = "";
-  for (let i = 0; i < 32; i++) {
-    token += chars[Math.floor(Math.random() * 16)];
-  }
-  return token;
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);

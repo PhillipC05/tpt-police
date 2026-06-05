@@ -293,6 +293,8 @@ model Tenant {
   officerCommendations OfficerCommendation[]
   patrolZones        PatrolZone[]
   drones             Drone[]
+  publicPortalConfig PublicPortalConfig?
+  publicSubmissions  PublicSubmission[]
 
   @@index([parentId])
   @@index([type])
@@ -359,6 +361,7 @@ model User {
   counsellingSessions  CounsellingSession[]
   commendationsReceived OfficerCommendation[]
   droneOperations      DroneDeployment[]
+  publicProfile        PublicProfile?
 
   @@index([tenantId])
   @@index([email])
@@ -1773,6 +1776,125 @@ model DroneDeployment {
 
   @@index([droneId])
   @@index([operatorId])
+}
+
+// ─────────────────────────────────────────────
+// PUBLIC PORTAL — Portal Configuration
+// ─────────────────────────────────────────────
+
+model PublicPortalConfig {
+  id                    String   @id @default(cuid())
+  tenantId              String   @unique
+  tenant                Tenant   @relation(fields: [tenantId], references: [id])
+
+  // Feature toggles (all default true)
+  tipsEnabled           Boolean  @default(true)
+  complaintsEnabled     Boolean  @default(true)
+  commendationsEnabled  Boolean  @default(true)
+  missingPersonReports  Boolean  @default(true)
+  communityEventsPublic Boolean  @default(true)
+  neighbourhoodWatch    Boolean  @default(true)
+  liveAlerts            Boolean  @default(true)
+  evidenceUploads       Boolean  @default(true)
+  publicRegistration    Boolean  @default(true)
+
+  // Branding
+  portalName            String   @default("TPT Police — Community Portal")
+  portalDescription     String?  @db.Text
+  logoUrl               String?
+  primaryColor          String   @default("#1e3a5f")
+  contactEmail          String?
+  contactPhone          String?
+
+  // Location for proximity matching
+  latitude              Float?
+  longitude             Float?
+  serviceAreaRadiusKm   Float    @default(50)
+
+  updatedAt             DateTime @updatedAt
+  createdAt             DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+// ─────────────────────────────────────────────
+// PUBLIC PORTAL — Citizen Profile
+// ─────────────────────────────────────────────
+
+model PublicProfile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName   String?
+  phone         String?
+  avatarUrl     String?
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  submissions   PublicSubmission[]
+}
+
+// ─────────────────────────────────────────────
+// PUBLIC PORTAL — Unified Submission Tracker
+// ─────────────────────────────────────────────
+
+model PublicSubmission {
+  id              String   @id @default(cuid())
+  referenceNumber String   @unique
+  citizenId       String?
+  citizen         PublicProfile? @relation(fields: [citizenId], references: [id])
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  type            String   // TIP | COMPLAINT | COMMENDATION | MISSING_PERSON | FOIA | EVIDENCE
+  status          String   @default("SUBMITTED")
+  description     String   @db.Text
+  location        String?
+  latitude        Float?
+  longitude       Float?
+  isAnonymous     Boolean  @default(true)
+  // For linking to the underlying record after processing
+  linkedRecordType String?
+  linkedRecordId   String?
+  // Admin notes
+  publicResponse  String?  @db.Text
+  internalNotes   String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  attachments     SubmissionAttachment[]
+  statusHistory   SubmissionStatusHistory[]
+
+  @@index([tenantId])
+  @@index([citizenId])
+  @@index([referenceNumber])
+  @@index([type])
+}
+
+model SubmissionAttachment {
+  id             String   @id @default(cuid())
+  submissionId   String
+  submission     PublicSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  fileName       String
+  fileKey        String
+  mimeType       String
+  fileSize       Int
+  uploadedAt     DateTime @default(now())
+
+  @@index([submissionId])
+}
+
+model SubmissionStatusHistory {
+  id           String   @id @default(cuid())
+  submissionId String
+  submission   PublicSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  fromStatus   String?
+  toStatus     String
+  changedById  String?
+  note         String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  @@index([submissionId])
 }
 
 // ─────────────────────────────────────────────

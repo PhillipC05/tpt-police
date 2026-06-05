@@ -122,6 +122,18 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ message: "Tip ID required" }, { status: 400 });
     }
 
+    // Verify tip belongs to user's tenant
+    const existing = await prisma.crimeTip.findUnique({
+      where: { id },
+      select: { tenantId: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ message: "Not found" }, { status: 404 });
+    }
+    if (existing.tenantId !== session.user.tenantId) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
+    }
+
     const tip = await prisma.crimeTip.update({
       where: { id },
       data: { reviewed: reviewed ?? true },

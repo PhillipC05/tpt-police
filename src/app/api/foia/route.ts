@@ -29,13 +29,13 @@ export async function GET(request: Request) {
 
   if (referenceNumber) {
     // Public tracking - no auth required
+    // NOTE: description is intentionally excluded from public response
+    // to avoid leaking potentially sensitive information
     const foia = await prisma.foiaRequest.findUnique({
       where: { referenceNumber },
       select: {
         referenceNumber: true,
         status: true,
-        description: true,
-        responseNotes: true,
         createdAt: true,
         respondedAt: true,
         dueDate: true,
@@ -136,6 +136,18 @@ export async function PATCH(request: Request) {
 
     if (!id) {
       return NextResponse.json({ message: "FOIA request ID required" }, { status: 400 });
+    }
+
+    // Verify FOIA belongs to user's tenant
+    const existing = await prisma.foiaRequest.findUnique({
+      where: { id },
+      select: { tenantId: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ message: "Not found" }, { status: 404 });
+    }
+    if (existing.tenantId !== session.user.tenantId) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
     }
 
     const updateData: Record<string, unknown> = {};
