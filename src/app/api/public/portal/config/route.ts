@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(config);
   } catch (error) {
-    console.error("Public portal config error:", error);
+    logger.error("Public portal config error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

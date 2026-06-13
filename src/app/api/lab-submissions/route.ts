@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const createSchema = z.object({
   evidenceId: z.string().optional(),
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(submission, { status: 201 });
   } catch (error) {
-    console.error("Lab submission error:", error);
+    logger.error("Lab submission error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -106,7 +107,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(submission);
   } catch (error) {
-    console.error("Update lab submission error:", error);
+    logger.error("Update lab submission error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

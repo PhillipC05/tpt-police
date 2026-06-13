@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const createSchema = z.object({
   contactType: z.enum(["TRAFFIC_STOP", "FIELD_INTERVIEW", "PEDESTRIAN_STOP", "WARRANT_CHECK"]),
@@ -95,7 +96,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(contact, { status: 201 });
   } catch (error) {
-    console.error("Create field contact error:", error);
+    logger.error("Create field contact error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

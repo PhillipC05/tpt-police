@@ -19,6 +19,9 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "TPT Police — National Law Enforcement Platform",
   description: "Comprehensive police department management system",
+  manifest: "/manifest.json",
+  themeColor: "#1e293b",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "TPT Police" },
 };
 
 export default function RootLayout({

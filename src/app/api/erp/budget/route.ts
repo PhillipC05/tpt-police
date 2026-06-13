@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const createBudgetSchema = z.object({
   financialYear: z.string(),
@@ -115,7 +116,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(budget, { status: 201 });
   } catch (error) {
-    console.error("Create budget error:", error);
+    logger.error("Create budget error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

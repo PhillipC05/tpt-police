@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 
 export async function GET() {
   const session = await auth();
@@ -111,7 +112,7 @@ export async function GET() {
       user,
     });
   } catch (error) {
-    console.error("Data export error:", error);
+    logger.error("Data export error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

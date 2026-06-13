@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const createTenantSchema = z.object({
   name: z.string().min(2),
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(tenant, { status: 201 });
   } catch (error) {
-    console.error("Create tenant error:", error);
+    logger.error("Create tenant error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

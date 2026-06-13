@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const createShiftSchema = z.object({
   name: z.string().min(1),
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(shift, { status: 201 });
   } catch (error) {
-    console.error("Create shift error:", error);
+    logger.error("Create shift error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -126,7 +127,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(assignment);
   } catch (error) {
-    console.error("Assign officer error:", error);
+    logger.error("Assign officer error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -154,7 +155,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ message: "Shift deleted" });
   } catch (error) {
-    console.error("Delete shift error:", error);
+    logger.error("Delete shift error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

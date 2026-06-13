@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const uploadSchema = z.object({
   fileName: z.string().min(1),
@@ -82,7 +83,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     return NextResponse.json({ message: "Document uploaded" }, { status: 201 });
   } catch (error) {
-    console.error("Upload document error:", error);
+    logger.error("Upload document error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const createSchema = z.object({
   officerId: z.string().min(1),
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(counselling, { status: 201 });
   } catch (error) {
-    console.error("Create counselling session error:", error);
+    logger.error("Create counselling session error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

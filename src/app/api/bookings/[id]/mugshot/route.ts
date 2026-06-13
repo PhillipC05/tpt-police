@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { uploadFile } from "@/lib/storage";
+import { logger } from "@/lib/logger";
 
 // Map of allowed MIME types to safe file extensions
 const MIME_TO_EXT: Record<string, string> = {
@@ -75,7 +76,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     return NextResponse.json({ mugShotUrl }, { status: 200 });
   } catch (error) {
-    console.error("Mugshot upload error:", error);
+    logger.error("Mugshot upload error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

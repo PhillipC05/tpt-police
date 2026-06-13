@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const surveySchema = z.object({
   eventId: z.string().optional(),
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ id: survey.id, message: "Thank you for your feedback" }, { status: 201 });
   } catch (error) {
-    console.error("Survey error:", error);
+    logger.error("Survey error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

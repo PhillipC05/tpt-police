@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#1e40af"/>
+  <!-- Shield body -->
+  <path d="M256 72 L396 136 L396 268 Q396 374 256 444 Q116 374 116 268 L116 136 Z" fill="#3b82f6"/>
+  <!-- Community person icon -->
+  <circle cx="256" cy="188" r="44" fill="#f8fafc"/>
+  <path d="M152 316 Q152 256 256 256 Q360 256 360 316" fill="#f8fafc"/>
+  <text x="256" y="396" font-family="system-ui,sans-serif" font-size="28" fill="#bfdbfe" text-anchor="middle" letter-spacing="3">COMMUNITY</text>
+</svg>

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const updateStaffSchema = z.object({
   name: z.string().min(1).optional(),
@@ -90,7 +91,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     return NextResponse.json(staff);
   } catch (error) {
-    console.error("Update staff error:", error);
+    logger.error("Update staff error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -126,7 +127,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     return NextResponse.json({ message: "Staff deactivated" });
   } catch (error) {
-    console.error("Deactivate staff error:", error);
+    logger.error("Deactivate staff error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

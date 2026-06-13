@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const checkinSchema = z.object({
   moodScore: z.number().int().min(1).max(5),
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(checkin, { status: 201 });
   } catch (error) {
-    console.error("Wellness checkin error:", error);
+    logger.error("Wellness checkin error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

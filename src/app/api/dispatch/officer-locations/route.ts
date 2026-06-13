@@ -22,9 +22,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
-  const minutesAgo = searchParams.get("minutesAgo")
-    ? parseInt(searchParams.get("minutesAgo")!)
-    : 30;
+  const minutesAgo = parseInt(searchParams.get("minutesAgo") ?? "30");
 
   const where: Record<string, unknown> = { tenantId: session.user.tenantId };
   if (status) where.status = status;

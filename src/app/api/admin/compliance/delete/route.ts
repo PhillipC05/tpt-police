@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 
 export async function DELETE() {
   const session = await auth();
@@ -80,7 +81,7 @@ export async function DELETE() {
       deletedAccount: user.email,
     });
   } catch (error) {
-    console.error("Data deletion error:", error);
+    logger.error("Data deletion error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

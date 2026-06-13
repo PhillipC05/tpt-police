@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const createSchema = z.object({
   personId: z.string().min(1),
@@ -89,7 +90,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(booking, { status: 201 });
   } catch (error) {
-    console.error("Create booking error:", error);
+    logger.error("Create booking error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

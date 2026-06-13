@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const retentionSchema = z.object({
   auditLogRetentionDays: z.number().int().min(30).max(3650).optional(),
@@ -77,7 +78,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(policy);
   } catch (error) {
-    console.error("Update retention policy error:", error);
+    logger.error("Update retention policy error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const createSchema = z.object({
   userId: z.string(),
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(record, { status: 201 });
   } catch (error) {
-    console.error("Create disciplinary error:", error);
+    logger.error("Create disciplinary error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -118,7 +119,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json(updated);
   } catch (error) {
-    console.error("Update disciplinary error:", error);
+    logger.error("Update disciplinary error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

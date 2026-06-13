@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/public/alerts?tenantId=xxx
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(alerts);
   } catch (error) {
-    console.error("Public alerts error:", error);
+    logger.error("Public alerts error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

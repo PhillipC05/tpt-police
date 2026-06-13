@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const createReviewSchema = z.object({
   userId: z.string(),
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(review, { status: 201 });
   } catch (error) {
-    console.error("Create review error:", error);
+    logger.error("Create review error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

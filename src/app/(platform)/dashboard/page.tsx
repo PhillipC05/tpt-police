@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FolderOpen, Users, Truck, AlertCircle } from "lucide-react";
+import { FolderOpen, Users, Truck, AlertCircle, ClipboardList } from "lucide-react";
+import { ShiftBriefCard } from "@/components/dashboard/shift-brief-card";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -9,17 +10,18 @@ export default async function DashboardPage() {
 
   const tenantId = session.user.tenantId;
 
-  const [openCases, staffCount, activeIncidents] = await Promise.all([
+  const [openCases, staffCount, activeIncidents, activeAlerts] = await Promise.all([
     prisma.case.count({ where: { tenantId, status: { in: ["OPEN", "ACTIVE"] } } }),
     prisma.user.count({ where: { tenantId, status: "ACTIVE" } }),
     prisma.incident.count({ where: { tenantId, status: "ACTIVE" } }),
+    prisma.alert.count({ where: { tenantId, status: "ACTIVE" } }),
   ]);
 
   const stats = [
     { title: "Open Cases", value: openCases, icon: FolderOpen, color: "text-blue-500" },
     { title: "Active Staff", value: staffCount, icon: Users, color: "text-green-500" },
     { title: "Live Incidents", value: activeIncidents, icon: AlertCircle, color: "text-red-500" },
-    { title: "Fleet Vehicles", value: "—", icon: Truck, color: "text-orange-500" },
+    { title: "Active Alerts", value: activeAlerts, icon: ClipboardList, color: "text-orange-500" },
   ];
 
   return (
@@ -45,6 +47,8 @@ export default async function DashboardPage() {
           );
         })}
       </div>
+
+      <ShiftBriefCard userRole={session.user.role} />
     </div>
   );
 }

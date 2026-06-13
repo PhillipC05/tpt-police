@@ -362,6 +362,7 @@ model User {
   commendationsReceived OfficerCommendation[]
   droneOperations      DroneDeployment[]
   publicProfile        PublicProfile?
+  pushSubscriptions    PushSubscription[]
 
   @@index([tenantId])
   @@index([email])
@@ -1928,4 +1929,22 @@ model FieldContact {
   @@index([tenantId])
   @@index([officerId])
   @@index([personId])
+}
+
+// ─────────────────────────────────────────────
+// PWA — Push Subscriptions
+// ─────────────────────────────────────────────
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId  String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tenantId])
 }

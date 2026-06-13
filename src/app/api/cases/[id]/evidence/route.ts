@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 import { z } from "zod";
 
 const createEvidenceSchema = z.object({
@@ -18,6 +19,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+
+  const caseRecord = await prisma.case.findFirst({ where: { id, tenantId: session.user.tenantId } });
+  if (!caseRecord) return NextResponse.json({ message: "Not found" }, { status: 404 });
 
   const evidence = await prisma.evidence.findMany({
     where: { caseId: id },
@@ -39,6 +43,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   try {
     const { id: caseId } = await params;
+
+    const caseRecord = await prisma.case.findFirst({ where: { id: caseId, tenantId: session.user.tenantId } });
+    if (!caseRecord) return NextResponse.json({ message: "Not found" }, { status: 404 });
+
     const body = await request.json();
     const parsed = createEvidenceSchema.safeParse(body);
     if (!parsed.success) {
@@ -78,7 +86,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     return NextResponse.json(evidence, { status: 201 });
   } catch (error) {
-    console.error("Create evidence error:", error);
+    logger.error("Create evidence error", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

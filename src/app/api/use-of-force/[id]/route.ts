@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const reviewSchema = z.object({
   status: z.enum(["UNDER_REVIEW", "REVIEWED", "ESCALATED"]),
@@ -63,7 +64,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     return NextResponse.json(updated);
   } catch (error) {
-    console.error("Review use-of-force error:", error);
+    logger.error("Review use-of-force error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

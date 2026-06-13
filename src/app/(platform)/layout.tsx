@@ -5,6 +5,8 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { AlertBanner } from "@/components/layout/alert-banner";
+import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
+import { AlertBadge } from "@/components/pwa/alert-badge";
 
 export default async function PlatformLayout({
   children,
@@ -14,13 +16,26 @@ export default async function PlatformLayout({
   const session = await auth();
   if (!session) redirect("/login");
 
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: session.user.tenantId },
-    select: { name: true },
-  });
+  const [tenant, alertCount] = await Promise.all([
+    prisma.tenant.findUnique({
+      where: { id: session.user.tenantId },
+      select: { name: true },
+    }),
+    prisma.alert.count({
+      where: {
+        status: "ACTIVE",
+        OR: [
+          { tenantId: session.user.tenantId },
+          { scopeTenantId: null },
+        ],
+      },
+    }),
+  ]);
 
   return (
     <SidebarProvider>
+      <ServiceWorkerRegistration />
+      <AlertBadge count={alertCount} />
       <AppSidebar
         userRole={session.user.role}
         userName={session.user.name}

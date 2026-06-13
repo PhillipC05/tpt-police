@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PublicServiceWorkerRegistration } from "@/components/pwa/public-service-worker-registration";
 
 export const metadata: Metadata = {
   title: "TPT Police — Community Portal",
   description: "Submit tips, file complaints, commend officers, and connect with your local police.",
+  manifest: "/public-manifest.json",
+  themeColor: "#2563eb",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "TPT Community" },
 };
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
+      <PublicServiceWorkerRegistration />
       <header className="border-b bg-card shadow-sm">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/public" className="flex items-center gap-2 text-xl font-bold tracking-tight">

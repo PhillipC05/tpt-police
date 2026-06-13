@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#1e293b"/>
+  <!-- Shield body -->
+  <path d="M256 72 L396 136 L396 268 Q396 374 256 444 Q116 374 116 268 L116 136 Z" fill="#2563eb"/>
+  <!-- Shield shine -->
+  <path d="M256 88 L380 146 L380 268 Q380 364 256 428" fill="none" stroke="#3b82f6" stroke-width="4" opacity="0.5"/>
+  <!-- Star badge center -->
+  <polygon points="256,168 267,204 306,204 275,226 286,262 256,240 226,262 237,226 206,204 245,204" fill="#f8fafc"/>
+  <!-- TPT text -->
+  <text x="256" y="348" font-family="system-ui,sans-serif" font-size="48" font-weight="700" fill="#f8fafc" text-anchor="middle" letter-spacing="6">TPT</text>
+  <text x="256" y="396" font-family="system-ui,sans-serif" font-size="26" fill="#94a3b8" text-anchor="middle" letter-spacing="4">POLICE</text>
+</svg>

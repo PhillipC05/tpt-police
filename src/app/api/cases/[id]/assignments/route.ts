@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
+import { sendPushToUser } from "@/lib/push";
 
 const assignSchema = z.object({
   userId: z.string(),
@@ -39,9 +41,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       metadata: { caseId, userId: parsed.data.userId },
     });
 
+    await sendPushToUser(parsed.data.userId, {
+      title: parsed.data.isLead ? "You are lead on a case" : "You have been assigned to a case",
+      body: `Case ID: ${caseId}`,
+      url: `/cases/${caseId}`,
+      tag: `case-assign-${caseId}`,
+    });
+
     return NextResponse.json(assignment, { status: 201 });
   } catch (error) {
-    console.error("Assign case error:", error);
+    logger.error("Assign case error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -65,7 +74,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     return NextResponse.json({ message: "Assignment removed" });
   } catch (error) {
-    console.error("Remove assignment error:", error);
+    logger.error("Remove assignment error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

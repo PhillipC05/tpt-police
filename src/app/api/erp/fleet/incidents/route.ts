@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const createSchema = z.object({
   vehicleId: z.string().min(1),
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(incident, { status: 201 });
   } catch (error) {
-    console.error("Create vehicle incident error:", error);
+    logger.error("Create vehicle incident error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -89,7 +90,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json(incident);
   } catch (error) {
-    console.error("Update vehicle incident error:", error);
+    logger.error("Update vehicle incident error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const billingSchema = z.object({
   tenantId: z.string(),
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(subscription, { status: 201 });
   } catch (error) {
-    console.error("Create subscription error:", error);
+    logger.error("Create subscription error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -115,7 +116,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json(subscription);
   } catch (error) {
-    console.error("Update subscription error:", error);
+    logger.error("Update subscription error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

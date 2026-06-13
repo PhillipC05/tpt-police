@@ -5,6 +5,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
 import { checkRateLimit, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { validateCsrf } from "@/lib/csrf";
+import { logger } from "@/lib/logger";
 
 const createFoiaSchema = z.object({
   requesterName: z.string().min(1),
@@ -115,7 +116,7 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Create FOIA error:", error);
+    logger.error("Create FOIA error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -170,7 +171,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json(foia);
   } catch (error) {
-    console.error("Update FOIA error:", error);
+    logger.error("Update FOIA error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

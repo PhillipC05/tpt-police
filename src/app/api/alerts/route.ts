@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
+import { sendPushToTenant } from "@/lib/push";
 
 const createSchema = z.object({
   type: z.enum(["BOLO", "APB", "AMBER_ALERT", "SILVER_ALERT"]),
@@ -85,9 +87,16 @@ export async function POST(request: Request) {
       metadata: { type: parsed.data.type, title: parsed.data.title },
     });
 
+    await sendPushToTenant(session.user.tenantId, {
+      title: `${parsed.data.type.replace("_", " ")}: ${parsed.data.title}`,
+      body: parsed.data.description,
+      url: "/alerts",
+      tag: `alert-${alert.id}`,
+    });
+
     return NextResponse.json(alert, { status: 201 });
   } catch (error) {
-    console.error("Create alert error:", error);
+    logger.error("Create alert error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

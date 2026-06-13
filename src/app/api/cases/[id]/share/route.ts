@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const shareCaseSchema = z.object({
   sharedWithTenantId: z.string(),
@@ -58,7 +59,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     return NextResponse.json(share, { status: 201 });
   } catch (error) {
-    console.error("Share case error:", error);
+    logger.error("Share case error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

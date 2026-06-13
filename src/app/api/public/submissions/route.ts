@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { checkRateLimit, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { validateCsrf } from "@/lib/csrf";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 /**
  * Submission types the public portal supports.
@@ -184,7 +185,7 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Public submission error:", error);
+    logger.error("Public submission error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

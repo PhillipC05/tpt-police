@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { checkRateLimit, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { validateCsrf } from "@/lib/csrf";
+import { logger } from "@/lib/logger";
 
 const registerSchema = z.object({
   name: z.string().min(2),
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ user }, { status: 201 });
   } catch (error) {
-    console.error("Registration error:", error);
+    logger.error("Registration error:", { error });
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 }

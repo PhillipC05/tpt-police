@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/public/portal/nearby?latitude=...&longitude=...
@@ -70,7 +71,7 @@ export async function GET(request: Request) {
       fallbackCount: 0,
     });
   } catch (error) {
-    console.error("Nearby portal error:", error);
+    logger.error("Nearby portal error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

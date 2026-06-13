@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const createLeaveSchema = z.object({
   type: z.enum(["ANNUAL", "SICK", "MATERNITY", "PATERNITY", "STUDY", "SPECIAL"]),
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(leaveRequest, { status: 201 });
   } catch (error) {
-    console.error("Create leave error:", error);
+    logger.error("Create leave error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -128,7 +129,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json(updated);
   } catch (error) {
-    console.error("Update leave error:", error);
+    logger.error("Update leave error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

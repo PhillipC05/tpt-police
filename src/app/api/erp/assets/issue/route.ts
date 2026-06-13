@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const issueSchema = z.object({
   assetId: z.string().min(1),
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(issuance, { status: 201 });
   } catch (error) {
-    console.error("Issue asset error:", error);
+    logger.error("Issue asset error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -108,7 +109,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json(issuance);
   } catch (error) {
-    console.error("Return asset error:", error);
+    logger.error("Return asset error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

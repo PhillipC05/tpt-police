@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const createSwapSchema = z.object({
   shiftId: z.string(),
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(swap, { status: 201 });
   } catch (error) {
-    console.error("Create swap error:", error);
+    logger.error("Create swap error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -99,7 +100,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json(swap);
   } catch (error) {
-    console.error("Update swap error:", error);
+    logger.error("Update swap error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

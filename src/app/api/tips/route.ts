@@ -7,6 +7,7 @@ import { buildTipAcknowledgmentEmail } from "@/lib/email-templates";
 import { z } from "zod";
 import { checkRateLimit, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { validateCsrf } from "@/lib/csrf";
+import { logger } from "@/lib/logger";
 
 const createTipSchema = z.object({
   type: z.string().min(1),
@@ -94,14 +95,14 @@ export async function POST(request: Request) {
         text: emailData.text,
       }).then((result) => {
         if (!result.success) {
-          console.error("Failed to send tip acknowledgment email:", result.error);
+          logger.error("Failed to send tip acknowledgment email:", { error: result.error });
         }
       });
     }
 
     return NextResponse.json({ message: "Tip submitted", reference: tip.id }, { status: 201 });
   } catch (error) {
-    console.error("Submit tip error:", error);
+    logger.error("Submit tip error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -141,7 +142,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json(tip);
   } catch (error) {
-    console.error("Update tip error:", error);
+    logger.error("Update tip error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

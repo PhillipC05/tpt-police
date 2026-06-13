@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/public/community/events?tenantId=xxx
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(events);
   } catch (error) {
-    console.error("Community events error:", error);
+    logger.error("Community events error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

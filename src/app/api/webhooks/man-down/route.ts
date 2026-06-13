@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
 import { verifySecret } from "@/lib/secrets";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
       panicId: panic.id,
     }, { status: 201 });
   } catch (error) {
-    console.error("Man-down webhook error:", error);
+    logger.error("Man-down webhook error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

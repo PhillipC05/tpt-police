@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const updateSchema = z.object({
   status: z.enum(["EXPIRED", "CANCELLED"]),
@@ -43,7 +44,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     return NextResponse.json(updated);
   } catch (error) {
-    console.error("Update alert error:", error);
+    logger.error("Update alert error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

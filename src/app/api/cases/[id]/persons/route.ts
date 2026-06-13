@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const createPersonSchema = z.object({
   firstName: z.string().min(1),
@@ -88,7 +89,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     return NextResponse.json(link, { status: 201 });
   } catch (error) {
-    console.error("Add person error:", error);
+    logger.error("Add person error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

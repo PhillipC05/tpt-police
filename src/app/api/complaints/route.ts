@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const publicCreateSchema = z.object({
   complainantName: z.string().optional(),
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Create complaint error:", error);
+    logger.error("Create complaint error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -139,7 +140,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(complaint);
   } catch (error) {
-    console.error("Update complaint error:", error);
+    logger.error("Update complaint error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

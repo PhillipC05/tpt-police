@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
+import { sendPushToTenant } from "@/lib/push";
 
 const createSchema = z.object({
   latitude: z.number().min(-90).max(90).optional(),
@@ -72,9 +74,16 @@ export async function POST(request: Request) {
       metadata: { officer: session.user.name, hasGps: !!(parsed.data.latitude && parsed.data.longitude) },
     });
 
+    await sendPushToTenant(session.user.tenantId, {
+      title: "PANIC ALERT",
+      body: `Officer ${session.user.name} has activated their panic button.`,
+      url: "/dispatch",
+      tag: `panic-${event.id}`,
+    });
+
     return NextResponse.json(event, { status: 201 });
   } catch (error) {
-    console.error("Panic button error:", error);
+    logger.error("Panic button error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

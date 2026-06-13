@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const forceTypeValues = ["VERBAL", "PHYSICAL", "RESTRAINT", "CEW", "FIREARM", "OTHER"] as const;
 
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(report, { status: 201 });
   } catch (error) {
-    console.error("Create use-of-force error:", error);
+    logger.error("Create use-of-force error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

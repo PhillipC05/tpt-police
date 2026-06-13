@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const privacySchema = z.object({
   heatmapEnabled: z.boolean().optional(),
@@ -76,7 +77,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(settings);
   } catch (error) {
-    console.error("Update crime map privacy error:", error);
+    logger.error("Update crime map privacy error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

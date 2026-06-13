@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const createPeriodSchema = z.object({
   name: z.string().min(1),
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(period, { status: 201 });
   } catch (error) {
-    console.error("Create payroll period error:", error);
+    logger.error("Create payroll period error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
@@ -119,7 +120,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(period);
   } catch (error) {
-    console.error("Update payroll period error:", error);
+    logger.error("Update payroll period error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

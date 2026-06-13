@@ -1,8 +1,15 @@
 # TPT Police — National Law Enforcement Management Platform
 
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org)
+[![Prisma](https://img.shields.io/badge/Prisma-6-2D3748)](https://www.prisma.io)
+
 Multi-tenant national police department management platform serving a 4-tier hierarchy: **Nation → Province → City → Precinct**.
 
 Built with Next.js 16, TypeScript, PostgreSQL (Prisma ORM), NextAuth.js v5, and shadcn/ui.
+
+> **Open source under the MIT License.** See [LICENSE](LICENSE).
 
 ## Table of Contents
 
@@ -138,39 +145,28 @@ Before deploying, ensure you have:
 
 ### Environment Variables
 
-All required environment variables are documented in `.env.example`:
+All required environment variables are documented in [`.env.example`](.env.example). Copy it to `.env.local` and fill in your values.
 
-```bash
-# Required - Database
-DATABASE_URL="postgresql://user:password@host:5432/tpt_police?sslmode=require"
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | ✅ | PostgreSQL connection string |
+| `NEXTAUTH_URL` | ✅ | Public URL of the app (no trailing slash) |
+| `NEXTAUTH_SECRET` | ✅ | Random 32+ char secret for JWT signing |
+| `STORAGE_PROVIDER` | ✅ | `r2` or `wasabi` |
+| `R2_*` / `WASABI_*` | ✅ | Object storage credentials |
+| `DISPATCH_API_URL` | optional | External CAD system endpoint |
+| `DISPATCH_API_KEY` | optional | CAD API key |
+| `DISPATCH_WEBHOOK_SECRET` | optional | Inbound webhook validation |
+| `RESEND_API_KEY` | optional | Email via Resend (primary) |
+| `MAILJET_API_KEY` + `MAILJET_SECRET_KEY` | optional | Email via Mailjet (fallback) |
+| `REDIS_URL` | optional | Required for multi-instance rate limiting |
+| `OLLAMA_BASE_URL` | optional | Local Ollama AI endpoint (for AI features) |
+| `OPENROUTER_API_KEY` | optional | OpenRouter AI key (alternative to Ollama) |
+| `ANPR_API_URL` + `ANPR_API_KEY` | optional | Number plate lookup API |
+| `CLAMD_HOST` | optional | ClamAV host for malware scanning |
+| `LOG_LEVEL` | optional | `debug`/`info`/`warn`/`error` (default: `info`) |
 
-# Required - NextAuth
-NEXTAUTH_URL="https://your-domain.com"
-NEXTAUTH_SECRET="<generate with: openssl rand -base64 32>"
-
-# Required - File Storage (at least one of R2 or Wasabi)
-R2_ENDPOINT="https://<account-id>.r2.cloudflarestorage.com"
-R2_ACCESS_KEY_ID=""
-R2_SECRET_ACCESS_KEY=""
-R2_BUCKET="tpt-police"
-
-WASABI_ENDPOINT="https://s3.wasabisys.com"
-WASABI_REGION="us-east-1"
-WASABI_ACCESS_KEY_ID=""
-WASABI_SECRET_ACCESS_KEY=""
-WASABI_BUCKET="tpt-police-evidence"
-
-# Optional - Dispatch integration
-DISPATCH_API_URL="http://dispatch-service:4000"
-DISPATCH_API_KEY=""
-
-# Optional - Email
-SMTP_HOST=""
-SMTP_PORT="587"
-SMTP_USER=""
-SMTP_PASS=""
-SMTP_FROM="noreply@tptpolice.gov"
-```
+> AI features (FOIA drafting, shift briefs) work with either Ollama **or** OpenRouter. Leave both unset to disable AI entirely.
 
 ### Docker Deployment (Self-Hosted)
 
@@ -521,34 +517,47 @@ The seed script should create:
 ```
 tpt-police/
 ├── prisma/
-│   └── schema.prisma         # Database schema (all modules)
+│   └── schema.prisma         # Database schema (70+ models)
 ├── src/
 │   ├── app/
 │   │   ├── (auth)/           # Login, register, MFA pages
-│   │   ├── (platform)/       # Authenticated app routes
-│   │   │   ├── dashboard/    # Role-aware dashboard
-│   │   │   ├── hr/           # Staff directory, leave, performance
+│   │   ├── (platform)/       # Authenticated platform routes
+│   │   │   ├── dashboard/    # Role-aware dashboard + shift brief
 │   │   │   ├── cases/        # Case management, evidence, persons
-│   │   │   ├── erp/           # Fleet, assets, budget
-│   │   │   ├── dispatch/     # Live operations, incidents
+│   │   │   ├── dispatch/     # Live dispatch + officer tracking
+│   │   │   ├── operations/   # Warrants, bookings, BOLO, use-of-force
+│   │   │   ├── evidence-room/# Evidence inventory + lab submissions
+│   │   │   ├── bwc/          # Body worn camera management
+│   │   │   ├── hr/           # Staff, scheduling, payroll, wellness
+│   │   │   ├── erp/          # Fleet, assets, budget, drones
+│   │   │   ├── community/    # Events, watch groups, commendations
+│   │   │   ├── wellness/     # Mental health check-ins, counselling
+│   │   │   ├── reports/      # Analytics and scheduled reports
+│   │   │   ├── settings/     # Profile, security (MFA), notifications
 │   │   │   └── admin/        # Tenant management, billing, audit
 │   │   ├── (public)/         # Public portal (crime map, FOIA, tips)
-│   │   └── api/              # REST API routes
-│   ├── components/
-│   │   ├── ui/               # shadcn/ui primitives
-│   │   └── ...               # Feature components
+│   │   └── api/              # 95+ REST API routes
+│   ├── components/           # Feature components (co-located)
 │   ├── lib/
+│   │   ├── ai.ts             # Optional AI service (Ollama + OpenRouter)
+│   │   ├── anpr.ts           # Number plate lookup adapter
 │   │   ├── auth.ts           # NextAuth configuration
-│   │   ├── prisma.ts         # Prisma client singleton
-│   │   ├── storage.ts        # StorageService (R2 + Wasabi)
-│   │   ├── dispatch.ts       # Dispatch API adapter
-│   │   └── audit.ts          # Audit log helper
-│   └── middleware.ts          # Route protection + tenant resolution
-├── Dockerfile                 # Multi-stage production build
-├── docker-compose.yml         # App + PostgreSQL + Redis
-├── .env.example               # All required environment variables
-├── next.config.ts             # Next.js config (standalone output)
-└── TODO.md                    # Full task list by phase
+│   │   ├── audit.ts          # Immutable audit log writer
+│   │   ├── dispatch.ts       # External CAD adapter
+│   │   ├── email.ts          # Multi-provider email (Resend → Mailjet)
+│   │   ├── logger.ts         # Structured NDJSON logger
+│   │   ├── prisma.ts         # Prisma singleton
+│   │   ├── secrets.ts        # Startup secret validation
+│   │   └── storage.ts        # R2 / Wasabi abstraction
+│   └── middleware.ts         # Route protection + tenant resolution
+├── public/
+│   ├── manifest.json         # Officer PWA manifest
+│   └── public-manifest.json  # Community portal PWA manifest
+├── Dockerfile                # Multi-stage production build
+├── docker-compose.yml        # App + PostgreSQL + Redis
+├── .env.example              # All environment variables documented
+├── LICENSE                   # MIT License
+└── TODO.md                   # Phase-by-phase task history
 ```
 
 ---
@@ -559,28 +568,57 @@ The application provides REST API routes under `/api/`. Key endpoints:
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/health` | Health check (DB connectivity, memory, uptime) |
-| `POST /api/auth/register` | User registration |
-| `POST /api/auth/login` | Authentication |
-| `GET /api/audit-logs` | Audit log viewer (filterable, exportable) |
-| `GET /api/admin/tenants` | Tenant management (Super Admin) |
-| `GET /api/admin/billing` | Billing/subscription management |
-| `GET /api/hr/staff` | Staff directory |
-| `GET /api/cases` | Case list with search/filter |
-| `GET /api/erp/fleet` | Vehicle inventory |
-| `GET /api/erp/assets` | Asset catalog |
-| `GET /api/erp/budget` | Budget management |
-| `GET /api/dispatch/incidents` | Active incidents |
-| `GET /api/tips` | Anonymous tips (public) |
-| `GET /api/foia` | FOIA records requests (public) |
-| `GET /api/public/crime-map` | Anonymized crime data (public) |
+| `GET /api/health` | Health check (DB, memory, uptime) |
+| `GET /api/metrics` | Prometheus metrics |
+| `GET /api/audit-logs` | Audit trail (filterable) |
+| `GET/POST /api/cases` | Case management |
+| `GET/POST /api/cases/[id]/evidence` | Evidence CRUD (tenant-scoped) |
+| `GET /api/bwc/cameras` | Body camera inventory + events |
+| `GET /api/lab-submissions` | Lab submission tracking |
+| `GET /api/dispatch/officer-locations` | Real-time officer GPS |
+| `POST /api/webhooks/dispatch` | Inbound CAD webhook (Bearer auth) |
+| `POST /api/vehicles/plate-lookup` | ANPR number plate lookup (audited) |
+| `GET /api/shifts/handover-brief` | Shift handover summary (+ AI) |
+| `POST /api/admin/foia` | FOIA draft/send response (+ AI) |
+| `GET /api/admin/ai-config` | AI provider status |
+| `GET/PUT /api/user/profile` | User profile management |
+| `PUT /api/user/password` | Password change |
+| `GET /api/public/crime-map/heatmap` | Anonymized public crime data |
+| `GET /api/public/alerts` | Public safety alerts |
+| `POST /api/public/submissions` | Tips, complaints, commendations |
 
-All API routes use Zod validation. Authentication is handled via NextAuth.js JWT sessions.
+All 95+ routes use Zod validation. Auth via NextAuth.js JWT. Every mutation writes to the audit log.
+
+---
+
+## Known Gaps
+
+| Gap | Notes |
+|-----|-------|
+| **No test suite** | No Jest/Vitest setup. Integration tests for RBAC and tenant isolation are strongly recommended before production. |
+| **In-memory rate limiting** | `src/lib/rate-limit.ts` uses an in-memory Map. Set `REDIS_URL` for multi-instance deployments. |
+| **ClamAV scanning optional** | File uploads skip malware scanning unless `CLAMD_HOST` is set. Not recommended for production without it. |
+| **AI is opt-in** | AI features (FOIA draft, shift brief) degrade gracefully when neither `OLLAMA_BASE_URL` nor `OPENROUTER_API_KEY` is set. |
+| **ANPR stub** | Plate lookup returns empty data when `ANPR_API_URL` is not configured. Safe for development. |
+| **PWA icons placeholder** | `manifest.json` references `/icons/icon-192.png` and `/icons/icon-512.png` — add real icon files to `public/icons/` before deploying as a PWA. |
+
+---
+
+## Roadmap
+
+Features planned for future releases:
+
+- **Predictive hotspot mapping** — time-of-day/weekday crime heatmap overlays on dispatch and public maps
+- **Evidence expiration alerts** — automated email/in-app when retention period is approaching
+- **Cross-precinct person deduplication** — flag when the same person is booked under different names across precincts
+- **Court discovery bulk export** — one-click download of all case materials for prosecution
+- **Voice-to-text field reports** — Web Speech API integration for hands-free field contact entry
+- **Inter-precinct secure messaging** — direct messages and memos across precinct boundaries
+- **Offline PWA sync** — Background Sync API for queuing field contacts while offline
+- **Automated FOIA deadlines** — reminder emails to the records officer when FOIA responses are due
 
 ---
 
 ## License
 
-Proprietary — TPT Police National Law Enforcement Management Platform
-
-For deployment support, contact the TPT Police IT Division.
+This project is licensed under the **MIT License** — see [LICENSE](LICENSE) for details.

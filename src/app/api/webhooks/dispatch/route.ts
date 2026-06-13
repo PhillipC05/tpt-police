@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { IncidentStatus, Prisma } from "@prisma/client";
 import { checkRateLimit, getRateLimitIdentifier } from "@/lib/rate-limit";
 import { verifySecret } from "@/lib/secrets";
+import { logger } from "@/lib/logger";
 
 const webhookSecret = process.env.DISPATCH_WEBHOOK_SECRET;
 
@@ -19,7 +20,7 @@ const incidentWebhookSchema = z.object({
   tenantId: z.string(),
   unitId: z.string().optional(),
   unitStatus: z.string().optional(),
-  timestamp: z.iso.datetime(),
+  timestamp: z.string().datetime(),
   rawPayload: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ message: "Webhook processed", incidentId: incident.id });
   } catch (error) {
-    console.error("Webhook processing error:", error);
+    logger.error("Webhook processing error", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

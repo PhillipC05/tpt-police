@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 
 export async function POST() {
   const session = await auth();
@@ -111,7 +112,7 @@ export async function POST() {
       deleted: totalDeleted,
     });
   } catch (error) {
-    console.error("Purge error:", error);
+    logger.error("Purge error:", { error });
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
