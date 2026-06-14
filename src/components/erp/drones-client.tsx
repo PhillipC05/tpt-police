@@ -15,6 +15,7 @@ interface DroneItem {
   id: string;
   serialNumber: string;
   model: string;
+  category: string;
   status: string;
   batteryPercent: number;
   certificationExpiry: string | null;
@@ -98,6 +99,7 @@ export function DronesClient() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-sm font-medium">{d.serialNumber}</span>
                       <Badge variant={STATUS_VARIANTS[d.status] || "outline"}>{d.status}</Badge>
+                      <Badge variant="outline" className="text-xs">{d.category === "GROUND" ? "🦾 Ground" : "✈ Aerial"}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">{d.model}</p>
                     <div className="flex items-center gap-2 mt-1">

@@ -19,6 +19,7 @@ interface Camera {
   id: string;
   serialNumber: string;
   model: string;
+  deviceType: string;
   status: string;
   lastSyncAt: string | null;
   assignedTo: { id: string; name: string; badgeNumber: string | null } | null;
@@ -111,7 +112,14 @@ export function BWCClient({ initialCameras, initialEvents }: Props) {
                 {filteredCameras.map((cam) => (
                   <TableRow key={cam.id}>
                     <TableCell className="font-mono text-xs">{cam.serialNumber}</TableCell>
-                    <TableCell>{cam.model}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        {cam.model}
+                        {cam.deviceType === "SMART_GLASSES" && (
+                          <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">Smart Glasses</span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[cam.status] ?? "bg-gray-100 text-gray-800"}`}>
                         {cam.status}

@@ -243,6 +243,76 @@ enum FieldContactType {
   WARRANT_CHECK
 }
 
+enum GangType {
+  STREET_GANG
+  ORGANIZED_CRIME
+  EXTREMIST
+  CARTEL
+  MOTORCYCLE_CLUB
+  OTHER
+}
+
+enum GangStatus {
+  ACTIVE
+  INACTIVE
+  DISBANDED
+}
+
+enum GangMemberRole {
+  LEADER
+  LIEUTENANT
+  MEMBER
+  ASSOCIATE
+  SUSPECTED
+}
+
+enum AssociationType {
+  KNOWN_ASSOCIATE
+  FAMILY
+  EMPLOYER
+  BUSINESS_PARTNER
+  RIVAL
+  CO_DEFENDANT
+  INFORMANT
+}
+
+enum ConfidenceLevel {
+  CONFIRMED
+  SUSPECTED
+  UNVERIFIED
+}
+
+enum ThreatLevel {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum CameraSourceType {
+  BWC
+  SMART_GLASSES
+  CCTV
+  DRONE
+}
+
+enum CameraDeviceType {
+  BWC
+  SMART_GLASSES
+}
+
+enum DroneCategory {
+  AERIAL
+  GROUND
+}
+
+enum SurveillanceCameraStatus {
+  ONLINE
+  OFFLINE
+  MAINTENANCE
+}
+
 // ─────────────────────────────────────────────
 // MULTI-TENANCY
 // ─────────────────────────────────────────────
@@ -295,6 +365,12 @@ model Tenant {
   drones             Drone[]
   publicPortalConfig PublicPortalConfig?
   publicSubmissions  PublicSubmission[]
+  gangs              Gang[]
+  personAssociations PersonAssociation[]
+  scanConfig         ScanConfig?
+  surveillanceCameras SurveillanceCamera[]
+  faceScanSessions   FaceScanSession[]
+  facialMatches      FacialMatch[]
 
   @@index([parentId])
   @@index([type])
@@ -363,6 +439,8 @@ model User {
   droneOperations      DroneDeployment[]
   publicProfile        PublicProfile?
   pushSubscriptions    PushSubscription[]
+  faceScanSessions     FaceScanSession[]  @relation("FaceScanOfficer")
+  facialMatchAlerts    FacialMatch[]      @relation("FacialMatchAlert")
 
   @@index([tenantId])
   @@index([email])
@@ -553,7 +631,7 @@ model EvidenceCustody {
 // ─────────────────────────────────────────────
 
 model Person {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   firstName   String
   lastName    String
   dateOfBirth DateTime?
@@ -564,18 +642,24 @@ model Person {
   email       String?
   address     String?
   photoUrl    String?
-  notes       String?  @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  notes       String?     @db.Text
+  threatLevel ThreatLevel @default(NONE)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
-  caseLinks    CasePersonLink[]
-  statements   Statement[]
-  warrants     Warrant[]
-  bookings     Booking[]
-  alerts       Alert[]
-  fieldContacts FieldContact[]
+  caseLinks       CasePersonLink[]
+  statements      Statement[]
+  warrants        Warrant[]
+  bookings        Booking[]
+  alerts          Alert[]
+  fieldContacts   FieldContact[]
+  gangMemberships GangMember[]
+  associationsA   PersonAssociation[] @relation("AssocA")
+  associationsB   PersonAssociation[] @relation("AssocB")
+  facialMatches   FacialMatch[]
 
   @@index([idNumber])
+  @@index([threatLevel])
 }
 
 model CasePersonLink {
@@ -598,6 +682,65 @@ model Statement {
   fileUrl     String?
   takenAt     DateTime @default(now())
   takenById   String?
+}
+
+// ─────────────────────────────────────────────
+// INTELLIGENCE (Gangs, Networks, POI)
+// ─────────────────────────────────────────────
+
+model Gang {
+  id          String     @id @default(cuid())
+  name        String
+  aliases     String[]
+  type        GangType
+  status      GangStatus @default(ACTIVE)
+  territory   String?    @db.Text
+  description String?    @db.Text
+  tenantId    String
+  tenant      Tenant     @relation(fields: [tenantId], references: [id])
+  createdById String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  members     GangMember[]
+
+  @@index([tenantId])
+  @@index([name])
+}
+
+model GangMember {
+  id        String         @id @default(cuid())
+  gangId    String
+  gang      Gang           @relation(fields: [gangId], references: [id], onDelete: Cascade)
+  personId  String
+  person    Person         @relation(fields: [personId], references: [id])
+  role      GangMemberRole @default(MEMBER)
+  joinedAt  DateTime?
+  leftAt    DateTime?
+  notes     String?        @db.Text
+  createdAt DateTime       @default(now())
+
+  @@unique([gangId, personId])
+  @@index([personId])
+}
+
+model PersonAssociation {
+  id               String          @id @default(cuid())
+  personAId        String
+  personA          Person          @relation("AssocA", fields: [personAId], references: [id])
+  personBId        String
+  personB          Person          @relation("AssocB", fields: [personBId], references: [id])
+  relationshipType AssociationType
+  confidence       ConfidenceLevel @default(UNVERIFIED)
+  notes            String?         @db.Text
+  tenantId         String
+  tenant           Tenant          @relation(fields: [tenantId], references: [id])
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([personAId, personBId, relationshipType])
+  @@index([tenantId])
+  @@index([personAId])
+  @@index([personBId])
 }
 
 // ─────────────────────────────────────────────
@@ -1453,18 +1596,20 @@ enum CameraStatus {
 }
 
 model BodyCamera {
-  id              String       @id @default(cuid())
-  serialNumber    String       @unique
+  id              String           @id @default(cuid())
+  serialNumber    String           @unique
   model           String
+  deviceType      CameraDeviceType @default(BWC)
   assignedToId    String?
-  assignedTo      User?        @relation("CameraAssignment", fields: [assignedToId], references: [id])
-  batteryState    Int          @default(100)
+  assignedTo      User?            @relation("CameraAssignment", fields: [assignedToId], references: [id])
+  batteryState    Int              @default(100)
   lastSyncAt      DateTime?
-  status          CameraStatus @default(AVAILABLE)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  status          CameraStatus     @default(AVAILABLE)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   events          BWCEvent[]
+  faceScanSessions FaceScanSession[]
 
   @@index([assignedToId])
   @@index([status])
@@ -1740,17 +1885,18 @@ enum DroneStatus {
 }
 
 model Drone {
-  id                String     @id @default(cuid())
-  tenantId          String
-  tenant            Tenant     @relation(fields: [tenantId], references: [id])
-  serialNumber      String     @unique
-  model             String
-  status            DroneStatus @default(AVAILABLE)
-  batteryPercent    Int        @default(100)
-  lastServiceAt     DateTime?
+  id                  String        @id @default(cuid())
+  tenantId            String
+  tenant              Tenant        @relation(fields: [tenantId], references: [id])
+  serialNumber        String        @unique
+  model               String
+  category            DroneCategory @default(AERIAL)
+  status              DroneStatus   @default(AVAILABLE)
+  batteryPercent      Int           @default(100)
+  lastServiceAt       DateTime?
   certificationExpiry DateTime?
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   deployments       DroneDeployment[]
 
@@ -1774,6 +1920,8 @@ model DroneDeployment {
   approved        Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  faceScanSessions FaceScanSession[]
 
   @@index([droneId])
   @@index([operatorId])
@@ -1934,6 +2082,93 @@ model FieldContact {
 // ─────────────────────────────────────────────
 // PWA — Push Subscriptions
 // ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+// FACIAL RECOGNITION / IDENTITY SCANNER
+// ─────────────────────────────────────────────
+
+model ScanConfig {
+  id                 String      @id @default(cuid())
+  tenantId           String      @unique
+  tenant             Tenant      @relation(fields: [tenantId], references: [id])
+  masterEnabled      Boolean     @default(false)
+  scanMissingPersons Boolean     @default(true)
+  scanActiveWarrants Boolean     @default(false)
+  scanGangMembers    Boolean     @default(false)
+  minThreatLevelScan ThreatLevel @default(NONE)
+  minConfidence      Int         @default(85)
+  requiresApproval   Boolean     @default(false)
+  updatedById        String?
+  updatedAt          DateTime    @updatedAt
+  createdAt          DateTime    @default(now())
+}
+
+model SurveillanceCamera {
+  id          String                   @id @default(cuid())
+  name        String
+  location    String?
+  latitude    Float?
+  longitude   Float?
+  streamUrl   String?
+  status      SurveillanceCameraStatus @default(ONLINE)
+  scanEnabled Boolean                  @default(true)
+  tenantId    String
+  tenant      Tenant                   @relation(fields: [tenantId], references: [id])
+  installedAt DateTime?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  sessions    FaceScanSession[]
+
+  @@index([tenantId])
+}
+
+model FaceScanSession {
+  id                String              @id @default(cuid())
+  sourceType        CameraSourceType
+  bwcCameraId       String?
+  bwcCamera         BodyCamera?         @relation(fields: [bwcCameraId], references: [id])
+  droneDeploymentId String?
+  droneDeployment   DroneDeployment?    @relation(fields: [droneDeploymentId], references: [id])
+  surveillanceCamId String?
+  surveillanceCam   SurveillanceCamera? @relation(fields: [surveillanceCamId], references: [id])
+  officerId         String?
+  officer           User?               @relation("FaceScanOfficer", fields: [officerId], references: [id])
+  tenantId          String
+  tenant            Tenant              @relation(fields: [tenantId], references: [id])
+  startedAt         DateTime            @default(now())
+  endedAt           DateTime?
+  frameCount        Int                 @default(0)
+  matchCount        Int                 @default(0)
+  configSnapshot    Json
+
+  matches           FacialMatch[]
+
+  @@index([tenantId])
+  @@index([officerId])
+}
+
+model FacialMatch {
+  id            String          @id @default(cuid())
+  personId      String
+  person        Person          @relation(fields: [personId], references: [id])
+  sessionId     String
+  session       FaceScanSession @relation(fields: [sessionId], references: [id])
+  confidence    Float
+  matchReasons  String[]
+  thumbnailUrl  String?
+  alertedUserId String?
+  alertedUser   User?           @relation("FacialMatchAlert", fields: [alertedUserId], references: [id])
+  alertedAt     DateTime?
+  actionTaken   String?
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  capturedAt    DateTime        @default(now())
+
+  @@index([tenantId])
+  @@index([personId])
+  @@index([capturedAt])
+}
 
 model PushSubscription {
   id        String   @id @default(cuid())

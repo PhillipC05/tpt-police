@@ -32,6 +32,7 @@ import {
   Camera,
   Heart,
   UsersRound,
+  Eye,
 } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 
@@ -50,6 +51,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "ERP", href: "/erp", icon: Truck, roles: ["SUPER_ADMIN", "PRECINCT_ADMIN"] },
   { label: "Dispatch", href: "/dispatch", icon: Radio, roles: ["SUPER_ADMIN", "PRECINCT_ADMIN", "DISPATCHER", "OFFICER"] },
   { label: "Operations", href: "/operations", icon: Siren, roles: ["SUPER_ADMIN", "PRECINCT_ADMIN", "DETECTIVE", "OFFICER", "DISPATCHER"] },
+  { label: "Intelligence", href: "/intelligence", icon: Eye, roles: ["SUPER_ADMIN", "PROVINCE_ADMIN", "CITY_ADMIN", "PRECINCT_ADMIN", "DETECTIVE"] },
   { label: "Evidence Room", href: "/evidence-room", icon: Archive, roles: ["SUPER_ADMIN", "PRECINCT_ADMIN", "DETECTIVE"] },
   { label: "Body Cameras", href: "/bwc", icon: Camera, roles: ["SUPER_ADMIN", "PRECINCT_ADMIN", "DETECTIVE", "OFFICER"] },
   { label: "Community", href: "/community", icon: UsersRound, roles: ["SUPER_ADMIN", "PROVINCE_ADMIN", "CITY_ADMIN", "PRECINCT_ADMIN", "OFFICER"] },
